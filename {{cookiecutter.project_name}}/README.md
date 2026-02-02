@@ -144,20 +144,13 @@ python -m build --wheel
 
 ---
 
-# 🔒 Secure GitHub Repository Setup
+# 🔒 GitHub Repository Setup
 
-Follow these steps **in order** to configure your GitHub repository for secure CI/CD operations.
+Follow these steps **in order** to configure your GitHub repository for CI/CD.
 
-> ⚠️ **Important:** Status checks only appear after workflows have run once. See Step 4.
+> ⚠️ **Important:** Status checks only appear after workflows have run once. See Step 3.
 
-## Step 1: Create the Release Environment
-
-1. Go to **Settings** → **Environments** → **New environment**
-2. Name: `release` → Click **Configure environment**
-3. Enable: ✅ **Required reviewers** → Add yourself (and trusted collaborators)
-4. Click **Save protection rules**
-
-## Step 2: Configure Actions Permissions
+## Step 1: Configure Actions Permissions
 
 1. Go to **Settings** → **Actions** → **General**
 2. **Actions permissions**: ✅ **Allow all actions and reusable workflows**
@@ -167,15 +160,11 @@ Follow these steps **in order** to configure your GitHub repository for secure C
 4. **Fork pull request workflows**: ✅ **Require approval for first-time contributors**
 5. Click **Save**
 
-## Step 3: Create Classic Branch Protection Rule
-
-We use **classic branch protection** (not rulesets) because it properly supports `github-actions[bot]` bypass.
+## Step 2: Create Branch Protection Rule
 
 1. Go to **Settings** → **Branches**
-2. Click **Add branch protection rule** (or **Add classic branch protection rule**)
+2. Click **Add branch protection rule**
 3. Set **Branch name pattern**: `main`
-
-### Configure these settings:
 
 | Setting | Value |
 |---------|-------|
@@ -184,17 +173,15 @@ We use **classic branch protection** (not rulesets) because it properly supports
 |     | → ✅ Dismiss stale pull request approvals when new commits are pushed |
 |     | → ✅ Require review from Code Owners |
 | ✅ **Require conversation resolution before merging** | |
-| ✅ **Do not allow bypassing the above settings** | |
-| ✅ **Restrict who can push to matching branches** | |
-|     | → Search & add: `github-actions[bot]` |
+| ❌ **Do not allow bypassing the above settings** | **UNCHECKED** (allows admin bypass) |
 
-4. Click **Create** (we'll add status checks after Step 4)
+4. Click **Create** (we'll add status checks after Step 3)
 
-## Step 4: Trigger Workflows & Add Status Checks
+## Step 3: Trigger Workflows & Add Status Checks
 
 1. Create a branch, make a small change, push, and open a PR
 2. Wait for workflows to run (`Run Tests and Lint`, `Run Pre-commit Checks`)
-3. Merge the PR → Approve the release environment deployment
+3. Merge the PR → Release pipeline runs automatically
 4. Go back to **Settings** → **Branches** → Edit the `main` rule
 5. Enable: ✅ **Require status checks to pass before merging**
    - ✅ **Require branches to be up to date before merging**

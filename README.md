@@ -79,31 +79,13 @@ git push -u origin main
 
 ---
 
-# 🔒 Secure GitHub Repository Setup
+# 🔒 GitHub Repository Setup
 
-This section covers how to configure your GitHub repository for secure CI/CD operations. **Follow these steps in order.**
+This section covers how to configure your GitHub repository for CI/CD operations. **Follow these steps in order.**
 
-> ⚠️ **Important:** Some settings (like status checks) require the workflows to have run at least once before they appear as options. This guide includes a step to trigger the workflows first.
+> ⚠️ **Important:** Status checks only appear after workflows have run at least once. This guide includes a step to trigger workflows first.
 
-## Step 1: Create the Release Environment
-
-The workflows use a `release` environment that requires approval before running critical operations (pushing to main, creating releases).
-
-1. Go to your repository on GitHub
-2. Navigate to **Settings** → **Environments**
-3. Click **New environment**
-4. Name it exactly: `release`
-5. Click **Configure environment**
-6. Under **Environment protection rules**:
-   - ✅ **Required reviewers** → Add yourself (and any trusted collaborators who should be able to approve)
-
-> **Note:** If you add collaborators as reviewers, they can approve deployments without needing YOUR explicit approval each time. This is useful for teams where multiple people should be able to release.
-
-7. Click **Save protection rules**
-
----
-
-## Step 2: Configure Actions Permissions
+## Step 1: Configure Actions Permissions
 
 1. Go to **Settings** → **Actions** → **General**
 
@@ -121,9 +103,7 @@ The workflows use a `release` environment that requires approval before running 
 
 ---
 
-## Step 3: Create Classic Branch Protection Rule (Partial)
-
-We use **classic branch protection** (not rulesets) because it properly supports `github-actions[bot]` bypass.
+## Step 2: Create Branch Protection Rule
 
 1. Go to **Settings** → **Branches**
 2. Click **Add branch protection rule** (or **Add classic branch protection rule**)
@@ -138,27 +118,19 @@ We use **classic branch protection** (not rulesets) because it properly supports
 |     | → ✅ Dismiss stale pull request approvals when new commits are pushed |
 |     | → ✅ Require review from Code Owners |
 | ✅ **Require conversation resolution before merging** | |
-| ✅ **Do not allow bypassing the above settings** | |
-| ✅ **Restrict who can push to matching branches** | See below ↓ |
+| ❌ **Do not allow bypassing the above settings** | **UNCHECKED** (allows admin bypass) |
 
-### Critical: Allow GitHub Actions to Push
+> **Note:** Leave "Do not allow bypassing the above settings" **UNCHECKED** so you (as admin) can bypass if needed, and so GitHub Actions can push commits.
 
-4. Under **Restrict who can push to matching branches**:
-   - Click the search box
-   - Type: `github-actions`
-   - Select: **github-actions[bot]** (it appears as a GitHub App)
+4. Click **Create**
 
-This restricts direct pushes to ONLY `github-actions[bot]`, while all humans must use PRs.
-
-> **Note:** We're NOT enabling "Require status checks to pass" yet — we'll add that after triggering the workflows.
-
-5. Click **Create** (or **Save changes**)
+> **Note:** We're NOT enabling "Require status checks to pass" yet — we'll add that after triggering the workflows in Step 3.
 
 ---
 
-## Step 4: Trigger Workflows to Register Status Checks
+## Step 3: Trigger Workflows to Register Status Checks
 
-Status checks only appear in GitHub's dropdown **after the workflows have run at least once**. Let's trigger them:
+Status checks only appear in GitHub's dropdown **after the workflows have run at least once**.
 
 1. Create a new branch locally:
    ```bash
@@ -176,19 +148,19 @@ Status checks only appear in GitHub's dropdown **after the workflows have run at
 
 4. Go to GitHub and **create a Pull Request** from `test/trigger-workflows` → `main`
 
-5. Wait for the workflows to run (you'll see them in the PR's "Checks" section)
-   - `Run Pre-commit Checks` should appear
-   - `Run Tests and Lint` should appear
+5. Wait for the workflows to run (you'll see them in the PR's "Checks" section):
+   - `Run Pre-commit Checks`
+   - `Run Tests and Lint`
 
-6. Once checks pass, **merge the PR** (you may need to approve it first since you're the code owner)
+6. Once checks pass, **merge the PR** (approve it since you're the code owner)
 
-7. After merging, the release pipeline will trigger. Go to **Actions** tab and **approve the deployment** to the `release` environment when prompted.
+7. After merging, the release pipeline runs automatically. Check the **Actions** tab to verify it completes successfully.
 
 ---
 
-## Step 5: Add Status Checks to Branch Protection
+## Step 4: Add Status Checks to Branch Protection
 
-Now that the workflows have run, we can add the status checks:
+Now that the workflows have run, add the status checks:
 
 1. Go to **Settings** → **Branches**
 2. Click **Edit** on your `main` branch protection rule
@@ -199,48 +171,34 @@ Now that the workflows have run, we can add the status checks:
    - `Run Tests and Lint`
    - `Run Pre-commit Checks`
 
-> **Note:** When you search, you'll see the check names. Select them to add as required checks.
-
 6. Click **Save changes**
 
 ---
 
 ## 🔐 Security Summary
 
-| Actor | Can push to main | Can change workflows | Can trigger release |
-|-------|------------------|---------------------|---------------------|
-| **You (owner)** | ✅ via PR only | ✅ via PR only | ✅ (can approve) |
-| **GitHub Actions** | ✅ directly (bypass) | ❌ (CODEOWNERS blocks) | ✅ (after environment approval) |
-| **Collaborators** | ❌ (unless PR approved) | ❌ (unless you approve) | ✅ if added as environment reviewer |
-| **Fork / Public** | ❌ | ❌ | ❌ |
+| Actor | Can push to main | Can approve PRs | Notes |
+|-------|------------------|-----------------|-------|
+| **You (admin)** | ✅ can bypass | ✅ | Admin bypass enabled |
+| **GitHub Actions** | ✅ directly | N/A | Pushes coverage, versions, wheels |
+| **Collaborators** | ❌ PR required | ✅ if reviewer | Standard PR workflow |
+| **Fork / Public** | ❌ | ❌ | Cannot push |
 
-### About Environment Approval:
+### How the Protection Works:
 
-- **You** can add collaborators as "Required reviewers" in the `release` environment
-- Any reviewer can approve the deployment — it doesn't require ALL reviewers
-- This means trusted collaborators can approve releases without waiting for you
-- To add collaborators: **Settings** → **Environments** → `release` → **Required reviewers**
+1. **PRs required for humans** - All collaborators must go through PRs
+2. **Admin bypass available** - You can push directly if needed (emergency fixes)
+3. **GitHub Actions can push** - Workflows push coverage reports, version bumps, and wheels automatically
+4. **CODEOWNERS protection** - Changes to `.github/workflows/` require your approval
+5. **Status checks** - Tests and linting must pass before merging
 
-### How It Works:
+### What Changed from PAT-based Setup:
 
-1. **CODEOWNERS file** (included in template) requires YOUR approval for any changes to `.github/workflows/`
-2. **Classic branch protection** allows only `github-actions[bot]` to push directly to main
-3. **Environment protection** requires approval before release jobs run
-4. **Result:** Workflows can push (coverage, versions, wheels), but no one can modify the workflows without your review
-
-### What We Removed (Insecure):
-- ❌ Personal Access Tokens (PATs) - can bypass ALL protections
-- ❌ `actions-js/push@master` - replaced with native git commands
-- ❌ Mutable action tags (`@master`) - security risk
-
-### What We Added (Secure):
-- ✅ `GITHUB_TOKEN` with limited permissions
-- ✅ Environment protection with required reviewers
-- ✅ CODEOWNERS file protecting workflow files
-- ✅ Explicit `permissions:` blocks in workflows
-- ✅ Classic branch protection allowing only Actions to push directly
-
----
+| Before (PAT) | After (GITHUB_TOKEN) |
+|--------------|---------------------|
+| ❌ PAT could bypass ALL protections | ✅ Only Actions can push automatically |
+| ❌ PAT in secrets = security risk | ✅ GITHUB_TOKEN is built-in and scoped |
+| ❌ PAT never expires (unless set) | ✅ GITHUB_TOKEN expires per-job |
 
 ---
 

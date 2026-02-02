@@ -16,7 +16,7 @@ jobs:
     name: Generate and Update Coverage Report
     if: {% raw %}${{ github.event.pull_request.merged }}{% endraw %}
     runs-on: ubuntu-latest
-    environment: release  # Requires environment approval for extra security
+    # Runs automatically when PR is merged - no manual approval needed
     steps:
       - name: Checkout repository with full history
         uses: actions/checkout@v4
@@ -68,7 +68,6 @@ jobs:
     needs: coverage-report
     if: {% raw %}${{ github.event.pull_request.merged }}{% endraw %}
     runs-on: ubuntu-latest
-    environment: release
     concurrency: release
     permissions:
       contents: write
@@ -105,7 +104,6 @@ jobs:
     needs: semantic-release
     if: {% raw %}${{ github.event.pull_request.merged }}{% endraw %}
     runs-on: ubuntu-latest
-    environment: release
     permissions:
       contents: write
 
