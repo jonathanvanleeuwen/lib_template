@@ -6,23 +6,22 @@ on:
       - main
     types: [closed]
 
-# Explicit minimal permissions - GITHUB_TOKEN is restricted by default
+# Permissions for GITHUB_TOKEN (used for releases, not pushing)
 permissions:
-  contents: write  # Required for pushing commits and creating releases
-  pull-requests: read  # Required for reading PR information
+  contents: write
+  pull-requests: read
 
 jobs:
   coverage-report:
     name: Generate and Update Coverage Report
     if: {% raw %}${{ github.event.pull_request.merged }}{% endraw %}
     runs-on: ubuntu-latest
-    # Runs automatically when PR is merged - no manual approval needed
     steps:
       - name: Checkout repository with full history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Use GITHUB_TOKEN instead of PAT - combined with branch protection bypass for Actions
+          token: {% raw %}${{ secrets.RELEASE_TOKEN }}{% endraw %}  # PAT for pushing to protected branch
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -68,17 +67,13 @@ jobs:
     needs: coverage-report
     if: {% raw %}${{ github.event.pull_request.merged }}{% endraw %}
     runs-on: ubuntu-latest
-    concurrency: release
-    permissions:
-      contents: write
-      id-token: write  # Required for trusted publishing
 
     steps:
       - name: Checkout repository with full history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # GITHUB_TOKEN is automatically provided and has bypass rights when configured
+          token: {% raw %}${{ secrets.RELEASE_TOKEN }}{% endraw %}  # PAT for pushing to protected branch
 
       - name: Pull latest changes from main
         run: git pull
@@ -97,21 +92,20 @@ jobs:
           git config --local user.name "github-actions[bot]"
           semantic-release version
         env:
-          GH_TOKEN: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
+          GH_TOKEN: {% raw %}${{ secrets.RELEASE_TOKEN }}{% endraw %}
 
   build-and-publish:
     name: Build Wheel and Publish to GitHub Release
     needs: semantic-release
     if: {% raw %}${{ github.event.pull_request.merged }}{% endraw %}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repository with full history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: {% raw %}${{ secrets.RELEASE_TOKEN }}{% endraw %}  # PAT for pushing to protected branch
 
       - name: Pull latest changes (includes new version tag)
         run: git pull origin main
@@ -142,7 +136,6 @@ jobs:
         run: |
           git fetch --tags
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          # Remove 'v' prefix if present to get clean version number
           VERSION_NUM=${LATEST_TAG#v}
           echo "version=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "version_num=$VERSION_NUM" >> $GITHUB_OUTPUT
@@ -155,4 +148,4 @@ jobs:
           files: dist/{{ cookiecutter.project_name }}-{% raw %}${{ steps.get_version.outputs.version_num }}{% endraw %}-py3-none-any.whl
           fail_on_unmatched_files: true
         env:
-          GITHUB_TOKEN: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
+          GITHUB_TOKEN: {% raw %}${{ secrets.RELEASE_TOKEN }}{% endraw %}
