@@ -167,43 +167,38 @@ Follow these steps **in order** to configure your GitHub repository for secure C
 4. **Fork pull request workflows**: ✅ **Require approval for first-time contributors**
 5. Click **Save**
 
-## Step 3: Create Branch Ruleset (without status checks)
+## Step 3: Create Classic Branch Protection Rule
 
-1. Go to **Settings** → **Rules** → **Rulesets**
-2. Click **New ruleset** → **New branch ruleset**
+We use **classic branch protection** (not rulesets) because it properly supports `github-actions[bot]` bypass.
 
-| Field | Value |
-|-------|-------|
-| **Ruleset name** | `main-protection` |
-| **Enforcement status** | ✅ **Active** |
+1. Go to **Settings** → **Branches**
+2. Click **Add branch protection rule** (or **Add classic branch protection rule**)
+3. Set **Branch name pattern**: `main`
 
-3. **Target branches**: Add target → Include by pattern → `main`
+### Configure these settings:
 
-4. **Bypass list**: Add bypass → search `github-actions` → select **github-actions[bot]** → **Always**
-
-5. Enable these rules:
-
-| Rule | Sub-settings |
-|------|--------------|
-| ✅ **Restrict deletions** | |
+| Setting | Value |
+|---------|-------|
 | ✅ **Require a pull request before merging** | |
-|     | → **Required approvals**: `1` |
-|     | → ✅ **Dismiss stale pull request approvals** |
-|     | → ✅ **Require review from Code Owners** |
-|     | → ✅ **Require conversation resolution** |
-| ✅ **Block force pushes** | |
+|     | → Required approvals: `1` |
+|     | → ✅ Dismiss stale pull request approvals when new commits are pushed |
+|     | → ✅ Require review from Code Owners |
+| ✅ **Require conversation resolution before merging** | |
+| ✅ **Do not allow bypassing the above settings** | |
+| ✅ **Restrict who can push to matching branches** | |
+|     | → Search & add: `github-actions[bot]` |
 
-6. Click **Create** (we'll add status checks after Step 4)
+4. Click **Create** (we'll add status checks after Step 4)
 
 ## Step 4: Trigger Workflows & Add Status Checks
 
 1. Create a branch, make a small change, push, and open a PR
 2. Wait for workflows to run (`Run Tests and Lint`, `Run Pre-commit Checks`)
 3. Merge the PR → Approve the release environment deployment
-4. Go back to **Settings** → **Rules** → **Rulesets** → Edit `main-protection`
-5. Enable: ✅ **Require status checks to pass**
-   - ✅ **Require branches to be up to date**
-   - Add checks: `Run Tests and Lint`, `Run Pre-commit Checks`
+4. Go back to **Settings** → **Branches** → Edit the `main` rule
+5. Enable: ✅ **Require status checks to pass before merging**
+   - ✅ **Require branches to be up to date before merging**
+   - Search & add: `Run Tests and Lint`, `Run Pre-commit Checks`
 6. Click **Save changes**
 
 ---

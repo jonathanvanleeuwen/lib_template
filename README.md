@@ -121,54 +121,38 @@ The workflows use a `release` environment that requires approval before running 
 
 ---
 
-## Step 3: Create Initial Branch Ruleset (Partial)
+## Step 3: Create Classic Branch Protection Rule (Partial)
 
-We'll create the ruleset now, but **leave out status checks** since they don't exist yet.
+We use **classic branch protection** (not rulesets) because it properly supports `github-actions[bot]` bypass.
 
-1. Go to **Settings** → **Rules** → **Rulesets**
-2. Click **New ruleset** → **New branch ruleset**
+1. Go to **Settings** → **Branches**
+2. Click **Add branch protection rule** (or **Add classic branch protection rule**)
+3. Set **Branch name pattern**: `main`
 
-### Basic Configuration:
+### Configure these settings:
 
-| Field | Value |
-|-------|-------|
-| **Ruleset name** | `main-protection` |
-| **Enforcement status** | ✅ **Active** |
-
-### Target Branches:
-
-3. Under **Target branches**, click **Add target** → **Include by pattern**
-4. Enter: `main`
-5. Click **Add**
-
-### Bypass List (Critical for CI/CD):
-
-6. Under **Bypass list**, click **Add bypass**
-7. In the search box, type: `github-actions`
-8. Select: ✅ **github-actions[bot]**
-9. Set bypass mode to: **Always**
-
-> **Troubleshooting:** If `github-actions[bot]` doesn't appear:
-> - Try typing the full name: `github-actions[bot]`
-> - Or select **GitHub App** from the dropdown, then search for `github-actions`
-> - The bot MUST be in the bypass list for CI/CD to work!
-
-### Branch Rules (enable these checkboxes):
-
-| Rule | Sub-settings |
-|------|--------------|
-| ✅ **Restrict deletions** | |
-| ✅ **Require linear history** | (optional) |
+| Setting | Value |
+|---------|-------|
 | ✅ **Require a pull request before merging** | |
-|     | → **Required approvals**: `1` |
-|     | → ✅ **Dismiss stale pull request approvals when new commits are pushed** |
-|     | → ✅ **Require review from Code Owners** |
-|     | → ✅ **Require conversation resolution before merging** |
-| ✅ **Block force pushes** | |
+|     | → Required approvals: `1` (or more) |
+|     | → ✅ Dismiss stale pull request approvals when new commits are pushed |
+|     | → ✅ Require review from Code Owners |
+| ✅ **Require conversation resolution before merging** | |
+| ✅ **Do not allow bypassing the above settings** | |
+| ✅ **Restrict who can push to matching branches** | See below ↓ |
+
+### Critical: Allow GitHub Actions to Push
+
+4. Under **Restrict who can push to matching branches**:
+   - Click the search box
+   - Type: `github-actions`
+   - Select: **github-actions[bot]** (it appears as a GitHub App)
+
+This restricts direct pushes to ONLY `github-actions[bot]`, while all humans must use PRs.
 
 > **Note:** We're NOT enabling "Require status checks to pass" yet — we'll add that after triggering the workflows.
 
-10. Click **Create**
+5. Click **Create** (or **Save changes**)
 
 ---
 
@@ -202,23 +186,22 @@ Status checks only appear in GitHub's dropdown **after the workflows have run at
 
 ---
 
-## Step 5: Add Status Checks to Branch Ruleset
+## Step 5: Add Status Checks to Branch Protection
 
 Now that the workflows have run, we can add the status checks:
 
-1. Go to **Settings** → **Rules** → **Rulesets**
-2. Click on your `main-protection` ruleset to edit it
+1. Go to **Settings** → **Branches**
+2. Click **Edit** on your `main` branch protection rule
 
-3. Enable: ✅ **Require status checks to pass**
-4. Under the status checks section:
-   - ✅ **Require branches to be up to date before merging**
-   - Click **Add checks**
-   - Search for and add: `Run Tests and Lint`
-   - Search for and add: `Run Pre-commit Checks`
+3. Enable: ✅ **Require status checks to pass before merging**
+4. Enable: ✅ **Require branches to be up to date before merging**
+5. In the search box, search for and add:
+   - `Run Tests and Lint`
+   - `Run Pre-commit Checks`
 
-> **Note:** When you search, GitHub may show "(from any source)" next to the check name. This is normal — it means GitHub will accept this status whether it comes from GitHub Actions or any other CI system.
+> **Note:** When you search, you'll see the check names. Select them to add as required checks.
 
-5. Click **Save changes**
+6. Click **Save changes**
 
 ---
 
@@ -241,7 +224,7 @@ Now that the workflows have run, we can add the status checks:
 ### How It Works:
 
 1. **CODEOWNERS file** (included in template) requires YOUR approval for any changes to `.github/workflows/`
-2. **Branch ruleset** allows `github-actions[bot]` to bypass PR requirements
+2. **Classic branch protection** allows only `github-actions[bot]` to push directly to main
 3. **Environment protection** requires approval before release jobs run
 4. **Result:** Workflows can push (coverage, versions, wheels), but no one can modify the workflows without your review
 
@@ -255,7 +238,7 @@ Now that the workflows have run, we can add the status checks:
 - ✅ Environment protection with required reviewers
 - ✅ CODEOWNERS file protecting workflow files
 - ✅ Explicit `permissions:` blocks in workflows
-- ✅ Branch ruleset allowing only Actions to bypass
+- ✅ Classic branch protection allowing only Actions to push directly
 
 ---
 
