@@ -12,8 +12,11 @@ A cookiecutter template for Python libraries with modern CI/CD setup.
 *Notes*
 Workflows trigger when a branch is merged into main!
 To install, please follow all the instructions in this readme.
-The workflows require a PAT set as secret (see further down for instructions)
-See the notes on how to create semantic releases at the bottom of the README.
+
+**Security:** This template uses `GITHUB_TOKEN` with branch protection bypass instead of Personal Access Tokens (PATs). This is more secure because:
+- PATs can bypass ALL protections and be abused if workflow files are modified
+- `GITHUB_TOKEN` with proper branch protection only allows Actions to push, while humans must follow PR rules
+- Environment protection gates add an extra approval layer before critical operations
 
 If you followed all the steps, whenever a PR is merged into `main`, the workflows are triggered and should:
 * Run pre-commit checks (fail fast on code quality issues)
@@ -31,7 +34,7 @@ Cookiecutter template:
   * `pip install cookiecutter`
 * Run the cookiecutter template from this GitHub repo
   * `cookiecutter https://github.com/jonathanvanleeuwen/lib_template`
-* Fill in your new library values
+* Fill in your new library values (including your GitHub username for CODEOWNERS)
 * Create new virtual environment
   *  `python -m venv .venv`
 * Activate the environment and install library with dev dependencies
@@ -72,81 +75,154 @@ git branch -M main
 git push -u origin main
 ```
 
-# Protect your main branch
-To ensure that only accepted code is put on main, make sure that all changes to main happen using a PR and at least 1
-reviewer.
-You also want to ensure that no tests are allowed to fail when merging
+---
 
-## Branch Protection
-### Ensure branch protection for PRs
-In the repo on github go to:
-* Settings -> Branches and click "add rule"
-* Enable:
-  * Require a pull request before merging
-    * Require approvals (set the number of required reviewers)
-  * Require status checks to pass before merging
-    * Require branches to be up to date before merging
-  * Require conversation resolution before merging
+# 🔒 Secure GitHub Repository Setup
 
-### Ensure workflow protection
-this is not entirely fool proof and secure, but better than nothing, in the repo on github go to:
-* Settings -> Actions -> General
-* Enable:
-  * Allow [owner], and select non-[owner], actions and reusable workflows
-* In "Allow specified actions and reusable workflows" add the following string:
-  * actions/checkout@v4,
-actions/setup-python@v5,
-relekang/python-semantic-release@master,
-MishaKav/pytest-coverage-comment@main,
-actions-js/push@master,
-softprops/action-gh-release@v2,
+This section covers how to configure your GitHub repository for secure CI/CD operations. **Follow these steps in order.**
 
-## Create a semantic release PAT and Secrets for the workflow actions
-For the semantic release to be able to push new version to the protected branch you need to
-create a PAT with the proper permissions and save the pat as a secret in the repo.
+## Step 1: Create the Release Environment
 
-### Create PAT
-* Click Top right image -> settings
-* Developer settings
-* Personal access tokens -> Tokens (classic)
-* Generate new token -> generate new token (classic)
+The workflows use a `release` environment that requires approval before running critical operations (pushing to main, creating releases).
 
-Settings:
-* Note: Semantic release
-* Enable:
-  * Repo (and all the repo options)
-  * workflow
-  * admin:repo_hook
-* Generate token
+1. Go to your repository on GitHub
+2. Navigate to **Settings** → **Environments**
+3. Click **New environment**
+4. Name it exactly: `release`
+5. Click **Configure environment**
+6. Under **Environment protection rules**, enable:
+   - ✅ **Required reviewers** → Add yourself (or trusted collaborators)
+7. Click **Save protection rules**
 
-Now copy the token (you need this in the next step)
+> **Why?** Even if someone modifies a workflow to abuse bypass rights, the job won't run without your approval.
 
-### Create secret
-Go to your repo, then:
-* Settings -> Secrets -> Actions
-* New repository secret
-  * Name: SEM_RELEASE
-  * Secret: [Your copied PAT token]
+---
 
-The name needs to be the same, as this is what is used in ".github\workflows\semantic-release.yml"
+## Step 2: Configure Branch Protection for `main`
 
+1. Go to **Settings** → **Branches**
+2. Click **Add branch ruleset** (or **Add rule** for classic protection)
+3. Set **Branch name pattern**: `main`
+4. Enable the following protections:
 
-# Semantic release
+### Required Settings:
+| Setting | Value |
+|---------|-------|
+| **Require a pull request before merging** | ✅ Enabled |
+| → Require approvals | Set to 1 (or more) |
+| → Dismiss stale PR approvals when new commits are pushed | ✅ Enabled |
+| **Require status checks to pass before merging** | ✅ Enabled |
+| → Require branches to be up to date before merging | ✅ Enabled |
+| → Add status checks: `Run Tests and Lint`, `Run Pre-commit Checks` | ✅ Add these |
+| **Require conversation resolution before merging** | ✅ Enabled |
+| **Do not allow bypassing the above settings** | ✅ Enabled |
+
+### Critical Security Setting:
+| Setting | Value |
+|---------|-------|
+| **Allow specified actors to bypass required pull requests** | ✅ Enabled |
+| → Add: `github-actions[bot]` | ✅ Add this actor |
+
+> **Why?** This allows your GitHub Actions workflows to push directly to `main` (for coverage updates, version bumps, wheel commits), while **humans must always go through PRs**.
+
+5. Click **Create** or **Save changes**
+
+---
+
+## Step 3: Configure Repository Actions Permissions
+
+1. Go to **Settings** → **Actions** → **General**
+2. Under **Actions permissions**, select:
+   - ✅ **Allow all actions and reusable workflows**
+   - (Or for extra security: **Allow select actions** and add the specific actions used)
+
+3. Under **Workflow permissions**:
+   - Select: ✅ **Read and write permissions**
+   - Enable: ✅ **Allow GitHub Actions to create and approve pull requests**
+
+4. Click **Save**
+
+> **Why?** The workflows need write access to push commits (coverage, wheel, version bumps). The "create and approve PRs" option is needed for some automation scenarios.
+
+---
+
+## Step 4: Enable CODEOWNERS Protection
+
+The template includes a `.github/CODEOWNERS` file that requires your approval for changes to:
+- `.github/workflows/**` (workflow files)
+- `.github/CODEOWNERS` (the CODEOWNERS file itself)
+- `pyproject.toml` (package configuration)
+
+**To make CODEOWNERS work:**
+
+1. Go to **Settings** → **Branches** → Edit your `main` branch rule
+2. Enable: ✅ **Require review from Code Owners**
+3. Save changes
+
+> **Why?** This prevents attackers from modifying workflow files to abuse the GITHUB_TOKEN bypass rights. They'd need YOUR approval to change any workflow.
+
+---
+
+## Step 5: Restrict Fork Pull Request Workflows (Public Repos)
+
+If your repository is **public**, add extra protection:
+
+1. Go to **Settings** → **Actions** → **General**
+2. Under **Fork pull request workflows from outside collaborators**:
+   - Select: ✅ **Require approval for first-time contributors**
+   - Or more strict: **Require approval for all outside collaborators**
+
+> **Why?** Prevents malicious forks from running workflows that could abuse repository access.
+
+---
+
+## 🔐 Security Summary
+
+| Actor | Can push to main | Can change workflows | Can trigger release |
+|-------|------------------|---------------------|---------------------|
+| **You (owner)** | ✅ via PR only | ✅ via PR only | ✅ after approval |
+| **GitHub Actions** | ✅ directly | ❌ | ✅ after environment approval |
+| **Collaborators** | ❌ (unless PR approved) | ❌ (unless you approve) | ❌ |
+| **Fork / Public** | ❌ | ❌ | ❌ |
+
+### What We Removed (Insecure):
+- ❌ Personal Access Tokens (PATs) - can bypass ALL protections
+- ❌ `actions-js/push@master` - replaced with native git commands
+- ❌ Mutable action tags (`@master`) - security risk
+
+### What We Added (Secure):
+- ✅ `GITHUB_TOKEN` with limited permissions
+- ✅ Environment protection with required reviewers
+- ✅ CODEOWNERS file protecting workflow files
+- ✅ Explicit `permissions:` blocks in workflows
+- ✅ Branch protection allowing only Actions to bypass
+
+---
+
+---
+
+# Semantic Release
 https://python-semantic-release.readthedocs.io/en/latest/
 
-The workflows are triggered when you merge into main!!
+The workflows are triggered when you merge into main!
 
 When committing use the following format for your commit message:
-* patch:
-  `fix: commit message`
-* minor:
-  `feat: commit message`
-* major/breaking (add the breaking change on the third line of the message):
-    ```
-    feat: commit message
+* **patch** (0.0.X):
+  ```
+  fix: commit message
+  ```
+* **minor** (0.X.0):
+  ```
+  feat: commit message
+  ```
+* **major/breaking** (X.0.0) - add the breaking change on the third line:
+  ```
+  feat: commit message
 
-    BREAKING CHANGE: commit message
-    ```
+  BREAKING CHANGE: description of breaking change
+  ```
+
+---
 
 # Installation Options (for generated libraries)
 Libraries created with this template support multiple installation methods:

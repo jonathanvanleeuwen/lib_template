@@ -11,15 +11,14 @@ A Python library with modern CI/CD setup.
 
 *Notes*
 Workflows trigger when a branch is merged into main!
-To install, please follow all the instructions in this readme.
-The workflows require a PAT set as secret (see further down for instructions)
-See the notes on how to create semantic releases at the bottom of the README.
 
-If you followed all the steps, whenever a PR is merged into `main`, the workflows are triggered and should:
+**Security:** This project uses `GITHUB_TOKEN` with branch protection bypass instead of Personal Access Tokens (PATs). See the setup instructions below.
+
+If you followed all the setup steps, whenever a PR is merged into `main`, the workflows will:
 * Run pre-commit checks (fail fast on code quality issues)
 * Ensure that tests pass (before merge)
 * Create a code coverage report and commit that to the bottom of the README
-* Create a semantic release (if you follow the semantic release pattern) and automatically update the version number of your code
+* Create a semantic release (if you follow the semantic release pattern) and automatically update the version number
 * Build a wheel and publish it as a GitHub Release asset
 
 
@@ -36,7 +35,7 @@ This method doesn't expose your token in command history:
 git config --global credential.helper store
 
 # Then install normally - git will prompt for credentials once
-pip install "git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@VERSION"
+pip install "git+https://github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git@VERSION"
 # When prompted: username = your GitHub username, password = your PAT
 ```
 
@@ -53,16 +52,16 @@ pip install "git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.
 
 ```bash
 # Replace YOUR_TOKEN with your actual token and VERSION with the desired version (e.g., v1.0.0)
-pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@VERSION"
+pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git@VERSION"
 
 # Install the latest version (main branch):
-pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git"
+pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git"
 ```
 
 ### Using uv (faster alternative to pip)
 
 ```bash
-uv pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@v1.0.0"
+uv pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git@v1.0.0"
 ```
 
 ## Option 2: Install from Wheel File in Repository
@@ -71,7 +70,7 @@ The latest wheel files are also committed to the `dist/` directory in the reposi
 
 ```bash
 # Clone the repository first
-git clone https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git
+git clone https://github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git
 
 # Install the wheel file directly
 pip install {{cookiecutter.project_name}}/dist/{{cookiecutter.project_name}}-1.0.0-py3-none-any.whl
@@ -83,7 +82,7 @@ pip install {{cookiecutter.project_name}}/dist/{{cookiecutter.project_name}}-1.0
 
 ```bash
 # Clone the repository
-git clone https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git
+git clone https://github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git
 cd {{cookiecutter.project_name}}
 
 # Install using pip
@@ -98,7 +97,7 @@ pip install -e ".[dev]"
 **In requirements.txt:**
 
 ```txt
-{{cookiecutter.project_name}} @ git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@v1.0.0
+{{cookiecutter.project_name}} @ git+https://github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git@v1.0.0
 ```
 
 **In pyproject.toml (for projects using PEP 621):**
@@ -106,7 +105,7 @@ pip install -e ".[dev]"
 ```toml
 [project]
 dependencies = [
-    "{{cookiecutter.project_name}} @ git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@v1.0.0",
+    "{{cookiecutter.project_name}} @ git+https://github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git@v1.0.0",
 ]
 ```
 
@@ -139,82 +138,77 @@ python -m build --wheel
    pytest
    ```
 
+---
 
-# Protect your main branch
-To ensure that only accepted code is put on main, make sure that all changes to main happen using a PR and at least 1
-reviewer.
-You also want to ensure that no tests are allowed to fail when merging
+# 🔒 Secure GitHub Repository Setup
 
-## Branch Protection
-### Ensure branch protection for PRs
-In the repo on github go to:
-* Settings -> Branches and click "add rule"
-* Enable:
-  * Require a pull request before merging
-    * Require approvals (set the number of required reviewers)
-  * Require status checks to pass before merging
-    * Require branches to be up to date before merging
-  * Require conversation resolution before merging
+Follow these steps **in order** to configure your GitHub repository for secure CI/CD operations.
 
-### Ensure workflow protection
-this is not entirely fool proof and secure, but better than nothing, in the repo on github go to:
-* Settings -> Actions -> General
-* Enable:
-  * Allow [owner], and select non-[owner], actions and reusable workflows
-* In "Allow specified actions and reusable workflows" add the following string:
-  * actions/checkout@v4,
-actions/setup-python@v5,
-relekang/python-semantic-release@master,
-MishaKav/pytest-coverage-comment@main,
-actions-js/push@master,
-softprops/action-gh-release@v2,
+## Step 1: Create the Release Environment
 
-## Create a semantic release PAT and Secrets for the workflow actions
-For the semantic release to be able to push new version to the protected branch you need to
-create a PAT with the proper permissions and save the pat as a secret in the repo.
+1. Go to your repository on GitHub
+2. Navigate to **Settings** → **Environments**
+3. Click **New environment**
+4. Name it exactly: `release`
+5. Click **Configure environment**
+6. Under **Environment protection rules**, enable:
+   - ✅ **Required reviewers** → Add yourself
+7. Click **Save protection rules**
 
-### Create PAT
-* Click Top right image -> settings
-* Developer settings
-* Personal access tokens -> Tokens (classic)
-* Generate new token -> generate new token (classic)
+## Step 2: Configure Branch Protection for `main`
 
-Settings:
-* Note: Semantic release
-* Enable:
-  * Repo (and all the repo options)
-  * workflow
-  * admin:repo_hook
-* Generate token
+1. Go to **Settings** → **Branches**
+2. Click **Add branch ruleset** (or **Add rule**)
+3. Set **Branch name pattern**: `main`
+4. Enable these protections:
 
-Now copy the token (you need this in the next step)
+| Setting | Value |
+|---------|-------|
+| **Require a pull request before merging** | ✅ Enabled |
+| → Require approvals | 1+ |
+| → Dismiss stale PR approvals when new commits are pushed | ✅ |
+| **Require status checks to pass before merging** | ✅ Enabled |
+| → Require branches to be up to date | ✅ |
+| → Add: `Run Tests and Lint`, `Run Pre-commit Checks` | ✅ |
+| **Require conversation resolution before merging** | ✅ |
+| **Do not allow bypassing the above settings** | ✅ |
+| **Allow specified actors to bypass required pull requests** | ✅ |
+| → Add: `github-actions[bot]` | ✅ |
 
-### Create secret
-Go to your repo, then:
-* Settings -> Secrets -> Actions
-* New repository secret
-  * Name: SEM_RELEASE
-  * Secret: [Your copied PAT token]
+5. Enable: ✅ **Require review from Code Owners**
+6. Click **Create** / **Save changes**
 
-The name needs to be the same, as this is what is used in ".github\workflows\semantic-release.yml"
+## Step 3: Configure Repository Actions Permissions
 
+1. Go to **Settings** → **Actions** → **General**
+2. Under **Actions permissions**: ✅ **Allow all actions and reusable workflows**
+3. Under **Workflow permissions**:
+   - ✅ **Read and write permissions**
+   - ✅ **Allow GitHub Actions to create and approve pull requests**
+4. Click **Save**
 
-# Semantic release
+## Step 4: Restrict Fork Workflows (Public Repos Only)
+
+1. Go to **Settings** → **Actions** → **General**
+2. Under **Fork pull request workflows**:
+   - ✅ **Require approval for first-time contributors**
+
+---
+
+# Semantic Release
 https://python-semantic-release.readthedocs.io/en/latest/
 
-The workflows are triggered when you merge into main!!
+Workflows are triggered when you merge into main!
 
-When committing use the following format for your commit message:
-* patch:
-  `fix: commit message`
-* minor:
-  `feat: commit message`
-* major/breaking (add the breaking change on the third line of the message):
-    ```
-    feat: commit message
+Commit message formats:
+* **patch** (0.0.X): `fix: commit message`
+* **minor** (0.X.0): `feat: commit message`
+* **major** (X.0.0):
+  ```
+  feat: commit message
 
-    BREAKING CHANGE: commit message
-    ```
+  BREAKING CHANGE: description
+  ```
 
 # Coverage report
 <!-- Pytest Coverage Comment:Begin -->
