@@ -1,64 +1,144 @@
 # {{cookiecutter.project_name}}
-* Automated testing on PR using github actions
-* Semantic release using github actions
+A Python library with modern CI/CD setup.
+
+## Features
+* Automated testing on PR using GitHub Actions
+* Pre-commit hooks for code quality (ruff, isort, trailing whitespace, etc.)
+* Semantic release using GitHub Actions
 * Automatic code coverage report in README
+* Automatic wheel build and GitHub Release publishing
+* Modern Python packaging with pyproject.toml
 
-*Notes*  
-Workflows trigger when a branch is merged into main!  
-To install, please follow all the instructions in this readme.  
-The workflows require a PAT set as secret (see further down for instructions)  
-See the notes on how to create semantic releases at the bottom of the README.     
-  
+*Notes*
+Workflows trigger when a branch is merged into main!
+To install, please follow all the instructions in this readme.
+The workflows require a PAT set as secret (see further down for instructions)
+See the notes on how to create semantic releases at the bottom of the README.
+
 If you followed all the steps, whenever a PR is merged into `main`, the workflows are triggered and should:
+* Run pre-commit checks (fail fast on code quality issues)
 * Ensure that tests pass (before merge)
-* Create a code coveraeg report and commit that to the bottom of the README
-* Create a semantic release (if you follow the semantic release pattern) and automatically update the version number of your code.
+* Create a code coverage report and commit that to the bottom of the README
+* Create a semantic release (if you follow the semantic release pattern) and automatically update the version number of your code
+* Build a wheel and publish it as a GitHub Release asset
 
 
-# Install
-Cookiecutter template:
-* Cd to your new libary location
-  * `cd /your/new/library/path/`
-* Install cookiecutter using pip
-  * `pip install cookiecutter`
-* Run the cookiecutter template from this github repo
-  * `cookiecutter https://github.com/jonathanvanleeuwen/lib_template`
-* Fill in your new library values
-* Create new virtual environment
-  *  `python -m venv .venv_repo_name`
-* Install libary
-  *  `pip install -e .`
-* Check proper install by running tests
-  * `pytest`
+# Installation
 
-## Turn the new local cookiecutter code into a git repo
+## Option 1: Install from Private GitHub Release (Recommended)
+Since this is a private repository, you need to authenticate with a GitHub Personal Access Token (PAT).
 
-Open git bash 
+### Configure git credentials (more secure, recommended)
+This method doesn't expose your token in command history:
+
 ```bash
-cd C:/your/code/directory
-```
-To init the repository, add all files and commit
-```bash
-git init
-git add *
-git add .github
-git add .gitignore
-git commit -m "fix: Inital commit"
+# Store credentials in git (one-time setup)
+git config --global credential.helper store
+
+# Then install normally - git will prompt for credentials once
+pip install "git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@VERSION"
+# When prompted: username = your GitHub username, password = your PAT
 ```
 
-To add the new git repository to your github, -
-*  Go to [github](https://github.com/).
--  Log in to your account.
--  Click the [new repository](https://github.com/new) button in the top-right. You’ll have an option there to initialize the repository with a README file, but don’t. Leave the repo empty
-- Give the new repo the same name you gave your repo with the cookiecutter
--  Click the “Create repository” button.
+### Step 1: Create a Personal Access Token (one-time setup)
 
-Now we want to make sure we are using `main` as main branch name and push the code to github
+1. Go to [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+2. Click **"Generate new token (classic)"**
+3. Give it a descriptive name (e.g., `{{cookiecutter.project_name}}-install`)
+4. Select the **`repo`** scope (required for private repositories)
+5. Click **"Generate token"**
+6. **Copy the token immediately** - you won't be able to see it again!
+
+### Step 2: Install the package
+
 ```bash
-git remote add origin https://github.com/username/new_repo_name.git
-git branch -M main
-git push -u origin main
+# Replace YOUR_TOKEN with your actual token and VERSION with the desired version (e.g., v1.0.0)
+pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@VERSION"
+
+# Install the latest version (main branch):
+pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git"
 ```
+
+### Using uv (faster alternative to pip)
+
+```bash
+uv pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@v1.0.0"
+```
+
+## Option 2: Install from Wheel File in Repository
+
+The latest wheel files are also committed to the `dist/` directory in the repository. After cloning:
+
+```bash
+# Clone the repository first
+git clone https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git
+
+# Install the wheel file directly
+pip install {{cookiecutter.project_name}}/dist/{{cookiecutter.project_name}}-1.0.0-py3-none-any.whl
+```
+
+> **Note:** Replace the version number with the actual version in the `dist/` directory.
+
+## Option 3: Install from Source (Clone Repository)
+
+```bash
+# Clone the repository
+git clone https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git
+cd {{cookiecutter.project_name}}
+
+# Install using pip
+pip install .
+
+# Or install in editable/development mode with dev dependencies
+pip install -e ".[dev]"
+```
+
+## Option 4: Add to requirements.txt or pyproject.toml
+
+**In requirements.txt:**
+
+```txt
+{{cookiecutter.project_name}} @ git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@v1.0.0
+```
+
+**In pyproject.toml (for projects using PEP 621):**
+
+```toml
+[project]
+dependencies = [
+    "{{cookiecutter.project_name}} @ git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@v1.0.0",
+]
+```
+
+## Building a Wheel File Locally
+
+```bash
+pip install build
+python -m build --wheel
+# The wheel will be created in the dist/ directory
+```
+
+
+# Development Setup
+
+1. Create new virtual environment
+   ```bash
+   python -m venv .venv
+   ```
+2. Activate the environment and install library with dev dependencies
+   ```bash
+   pip install -e ".[dev]"
+   ```
+3. Install pre-commit hooks
+   ```bash
+   pip install pre-commit
+   pre-commit install
+   ```
+4. Check proper install by running tests
+   ```bash
+   pytest
+   ```
+
 
 # Protect your main branch
 To ensure that only accepted code is put on main, make sure that all changes to main happen using a PR and at least 1
@@ -82,11 +162,12 @@ this is not entirely fool proof and secure, but better than nothing, in the repo
 * Enable:
   * Allow [owner], and select non-[owner], actions and reusable workflows
 * In "Allow specified actions and reusable workflows" add the following string:
-  * actions/checkout@v2,
-actions/setup-python@v3,
+  * actions/checkout@v4,
+actions/setup-python@v5,
 relekang/python-semantic-release@master,
 MishaKav/pytest-coverage-comment@main,
 actions-js/push@master,
+softprops/action-gh-release@v2,
 
 ## Create a semantic release PAT and Secrets for the workflow actions
 For the semantic release to be able to push new version to the protected branch you need to
@@ -115,7 +196,7 @@ Go to your repo, then:
   * Name: SEM_RELEASE
   * Secret: [Your copied PAT token]
 
-The name needs to be the same, as this is wat is used in ".github\workflows\semantic-release.yml"
+The name needs to be the same, as this is what is used in ".github\workflows\semantic-release.yml"
 
 
 # Semantic release
@@ -128,7 +209,7 @@ When committing use the following format for your commit message:
   `fix: commit message`
 * minor:
   `feat: commit message`
-* major/breaking (add the breaking change on the third  line of the message):
+* major/breaking (add the breaking change on the third line of the message):
     ```
     feat: commit message
 
