@@ -157,7 +157,7 @@ The workflow needs a Personal Access Token to push to the protected `main` branc
 1. Go to [GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta)
 2. Click **"Generate new token"**
 3. Configure the token:
-   - **Token name:** `RELEASE_TOKEN` (or similar descriptive name)
+   - **Token name:** `RELEASE_TOKEN_{{cookiecutter.project_name}}` (or similar descriptive name)
    - **Expiration:** Choose an appropriate duration (recommend 90 days, set a reminder to rotate)
    - **Repository access:** Select "Only select repositories" → choose this repository
    - **Permissions:**
@@ -173,7 +173,7 @@ If fine-grained tokens don't work for your use case:
 1. Go to [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
 2. Click **"Generate new token (classic)"**
 3. Configure:
-   - **Note:** `RELEASE_TOKEN`
+   - **Note:** `RELEASE_TOKEN_{{cookiecutter.project_name}}`
    - **Expiration:** Set an appropriate duration
    - **Scopes:** Select `repo` (full control of private repositories)
 4. Click **"Generate token"** and copy it

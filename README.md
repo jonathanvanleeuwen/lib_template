@@ -89,7 +89,7 @@ The workflow needs a Personal Access Token to push to the protected `main` branc
 1. Go to [GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta)
 2. Click **"Generate new token"**
 3. Configure the token:
-   - **Token name:** `RELEASE_TOKEN` (or similar descriptive name)
+   - **Token name:** `RELEASE_TOKEN_YOUR_REPO_NAME`
    - **Expiration:** Choose an appropriate duration (recommend 90 days, set a reminder to rotate)
    - **Repository access:** Select "Only select repositories" → choose your repository
    - **Permissions:**
