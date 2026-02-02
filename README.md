@@ -12,7 +12,7 @@ A cookiecutter template for Python libraries with modern CI/CD setup.
 *Notes*
 Workflows trigger when a branch is merged into main!
 To install, please follow all the instructions in this readme.
-The workflows require a PAT set as secret (see further down for instructions)
+The workflows require a PAT set as secret (see GitHub Repository Setup section for instructions).
 See the notes on how to create semantic releases at the bottom of the README.
 
 If you followed all the steps, whenever a PR is merged into `main`, the workflows are triggered and should:
@@ -31,7 +31,7 @@ Cookiecutter template:
   * `pip install cookiecutter`
 * Run the cookiecutter template from this GitHub repo
   * `cookiecutter https://github.com/jonathanvanleeuwen/lib_template`
-* Fill in your new library values
+* Fill in your new library values (including your GitHub username for CODEOWNERS)
 * Create new virtual environment
   *  `python -m venv .venv`
 * Activate the environment and install library with dev dependencies
@@ -39,6 +39,8 @@ Cookiecutter template:
 * Install pre-commit hooks
   * `pip install pre-commit`
   * `pre-commit install`
+* **Run pre-commit on all files** (important for initial commit!)
+  * `pre-commit run --all-files`
 * Check proper install by running tests
   * `pytest`
 
@@ -72,81 +74,119 @@ git branch -M main
 git push -u origin main
 ```
 
-# Protect your main branch
-To ensure that only accepted code is put on main, make sure that all changes to main happen using a PR and at least 1
-reviewer.
-You also want to ensure that no tests are allowed to fail when merging
+---
 
-## Branch Protection
-### Ensure branch protection for PRs
-In the repo on github go to:
-* Settings -> Branches and click "add rule"
-* Enable:
-  * Require a pull request before merging
-    * Require approvals (set the number of required reviewers)
-  * Require status checks to pass before merging
-    * Require branches to be up to date before merging
-  * Require conversation resolution before merging
+# 🔒 GitHub Repository Setup
 
-### Ensure workflow protection
-this is not entirely fool proof and secure, but better than nothing, in the repo on github go to:
-* Settings -> Actions -> General
-* Enable:
-  * Allow [owner], and select non-[owner], actions and reusable workflows
-* In "Allow specified actions and reusable workflows" add the following string:
-  * actions/checkout@v4,
-actions/setup-python@v5,
-relekang/python-semantic-release@master,
-MishaKav/pytest-coverage-comment@main,
-actions-js/push@master,
-softprops/action-gh-release@v2,
+Complete these steps in order to enable the CI/CD pipeline.
 
-## Create a semantic release PAT and Secrets for the workflow actions
-For the semantic release to be able to push new version to the protected branch you need to
-create a PAT with the proper permissions and save the pat as a secret in the repo.
+## Step 1: Create the Release Token (PAT)
 
-### Create PAT
-* Click Top right image -> settings
-* Developer settings
-* Personal access tokens -> Tokens (classic)
-* Generate new token -> generate new token (classic)
+The workflow needs a Personal Access Token to push to the protected `main` branch.
 
-Settings:
-* Note: Semantic release
-* Enable:
-  * Repo (and all the repo options)
-  * workflow
-  * admin:repo_hook
-* Generate token
+### Create a Fine-Grained PAT (Recommended - More Secure)
 
-Now copy the token (you need this in the next step)
+1. Go to [GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta)
+2. Click **"Generate new token"**
+3. Configure the token:
+   - **Token name:** `RELEASE_TOKEN_YOUR_REPO_NAME`
+   - **Expiration:** Choose an appropriate duration (recommend 90 days, set a reminder to rotate)
+   - **Repository access:** Select "Only select repositories" → choose your repository
+   - **Permissions:**
+     - **Contents:** Read and write (for pushing commits and tags)
+     - **Metadata:** Read-only (automatically selected)
+4. Click **"Generate token"**
+5. **Copy the token immediately** - you won't see it again!
 
-### Create secret
-Go to your repo, then:
-* Settings -> Secrets -> Actions
-* New repository secret
-  * Name: SEM_RELEASE
-  * Secret: [Your copied PAT token]
+### Alternative: Classic PAT (Simpler but Broader Access)
 
-The name needs to be the same, as this is what is used in ".github\workflows\semantic-release.yml"
+If fine-grained tokens don't work for your use case:
 
+1. Go to [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+2. Click **"Generate new token (classic)"**
+3. Configure:
+   - **Note:** `RELEASE_TOKEN`
+   - **Expiration:** Set an appropriate duration
+   - **Scopes:** Select `repo` (full control of private repositories)
+4. Click **"Generate token"** and copy it
 
-# Semantic release
+## Step 2: Add the Token as a Repository Secret
+
+1. Go to your repository on GitHub
+2. Navigate to **Settings → Secrets and variables → Actions**
+3. Click **"New repository secret"**
+4. Configure:
+   - **Name:** `RELEASE_TOKEN`
+   - **Secret:** Paste your copied PAT
+
+5. Click **"Add secret"**
+
+## Step 3: Configure Branch Protection with Rulesets
+
+GitHub Rulesets provide modern, flexible branch protection. The PAT allows the workflow to bypass these rules while humans must go through PRs.
+
+1. Go to your repository → **Settings → Rules → Rulesets**
+2. Click **"New ruleset"** → **"New branch ruleset"**
+3. Configure the ruleset:
+   - **Ruleset name:** `Protect main`
+   - **Enforcement status:** Active
+   - **Target branches:** Click "Add target" → "Include by pattern" → enter `main`
+
+4. Enable these rules:
+   - ✅ **Restrict deletions** - Prevent branch deletion
+   - ✅ **Require a pull request before merging**
+     - Required approvals: `1` (or more)
+     - ✅ Dismiss stale pull request approvals when new commits are pushed
+     - ✅ Require conversation resolution before merging
+   - ✅ **Require status checks to pass**
+     - ✅ Require branches to be up to date before merging
+     - Add status checks: `Run Pre-commit Checks`  & `Run Pre-commit Checks`
+   - ✅ **Block force pushes**
+
+5. Click **"Create"**
+
+## Security Model
+
+This setup provides security through multiple layers:
+
+| Protection | What it prevents |
+|------------|------------------|
+| **CODEOWNERS** | Requires your approval for any workflow changes |
+| **Required PRs** | No direct pushes to main (humans must use PRs) |
+| **Required reviews** | At least one approval needed for every change |
+| **Status checks** | Tests must pass before merge |
+| **PAT as secret** | Token only accessible to workflows, not forks |
+
+**Why is the PAT safe?**
+- The PAT is stored as a secret, never exposed in logs (GitHub auto-masks it)
+- Forks cannot access repository secrets
+- Any attempt to modify workflows to steal the PAT requires your explicit approval via CODEOWNERS
+- The PAT can only push; it cannot change branch protection rules
+
+---
+
+# Semantic Release
 https://python-semantic-release.readthedocs.io/en/latest/
 
-The workflows are triggered when you merge into main!!
+The workflows are triggered when you merge into main!
 
 When committing use the following format for your commit message:
-* patch:
-  `fix: commit message`
-* minor:
-  `feat: commit message`
-* major/breaking (add the breaking change on the third line of the message):
-    ```
-    feat: commit message
+* **patch** (0.0.X):
+  ```
+  fix: commit message
+  ```
+* **minor** (0.X.0):
+  ```
+  feat: commit message
+  ```
+* **major/breaking** (X.0.0) - add the breaking change on the third line:
+  ```
+  feat: commit message
 
-    BREAKING CHANGE: commit message
-    ```
+  BREAKING CHANGE: description of breaking change
+  ```
+
+---
 
 # Installation Options (for generated libraries)
 Libraries created with this template support multiple installation methods:

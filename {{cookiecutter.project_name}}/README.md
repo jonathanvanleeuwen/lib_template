@@ -36,7 +36,7 @@ This method doesn't expose your token in command history:
 git config --global credential.helper store
 
 # Then install normally - git will prompt for credentials once
-pip install "git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@VERSION"
+pip install "git+https://github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git@VERSION"
 # When prompted: username = your GitHub username, password = your PAT
 ```
 
@@ -53,16 +53,16 @@ pip install "git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.
 
 ```bash
 # Replace YOUR_TOKEN with your actual token and VERSION with the desired version (e.g., v1.0.0)
-pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@VERSION"
+pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git@VERSION"
 
 # Install the latest version (main branch):
-pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git"
+pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git"
 ```
 
 ### Using uv (faster alternative to pip)
 
 ```bash
-uv pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@v1.0.0"
+uv pip install "git+https://YOUR_TOKEN@github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git@v1.0.0"
 ```
 
 ## Option 2: Install from Wheel File in Repository
@@ -71,7 +71,7 @@ The latest wheel files are also committed to the `dist/` directory in the reposi
 
 ```bash
 # Clone the repository first
-git clone https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git
+git clone https://github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git
 
 # Install the wheel file directly
 pip install {{cookiecutter.project_name}}/dist/{{cookiecutter.project_name}}-1.0.0-py3-none-any.whl
@@ -83,7 +83,7 @@ pip install {{cookiecutter.project_name}}/dist/{{cookiecutter.project_name}}-1.0
 
 ```bash
 # Clone the repository
-git clone https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git
+git clone https://github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git
 cd {{cookiecutter.project_name}}
 
 # Install using pip
@@ -98,7 +98,7 @@ pip install -e ".[dev]"
 **In requirements.txt:**
 
 ```txt
-{{cookiecutter.project_name}} @ git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@v1.0.0
+{{cookiecutter.project_name}} @ git+https://github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git@v1.0.0
 ```
 
 **In pyproject.toml (for projects using PEP 621):**
@@ -106,7 +106,7 @@ pip install -e ".[dev]"
 ```toml
 [project]
 dependencies = [
-    "{{cookiecutter.project_name}} @ git+https://github.com/{{cookiecutter.github_name}}/{{cookiecutter.project_name}}.git@v1.0.0",
+    "{{cookiecutter.project_name}} @ git+https://github.com/{{cookiecutter.github_username}}/{{cookiecutter.project_name}}.git@v1.0.0",
 ]
 ```
 
@@ -134,88 +134,145 @@ python -m build --wheel
    pip install pre-commit
    pre-commit install
    ```
-4. Check proper install by running tests
+4. Run pre-commit on all files to ensure everything is properly set up
+   ```bash
+   pre-commit run --all-files
+   ```
+5. Check proper install by running tests
    ```bash
    pytest
    ```
 
 
-# Protect your main branch
-To ensure that only accepted code is put on main, make sure that all changes to main happen using a PR and at least 1
-reviewer.
-You also want to ensure that no tests are allowed to fail when merging
+# GitHub Repository Setup
 
-## Branch Protection
-### Ensure branch protection for PRs
-In the repo on github go to:
-* Settings -> Branches and click "add rule"
-* Enable:
-  * Require a pull request before merging
-    * Require approvals (set the number of required reviewers)
-  * Require status checks to pass before merging
-    * Require branches to be up to date before merging
-  * Require conversation resolution before merging
+Complete these steps in order to enable the CI/CD pipeline.
 
-### Ensure workflow protection
-this is not entirely fool proof and secure, but better than nothing, in the repo on github go to:
-* Settings -> Actions -> General
-* Enable:
-  * Allow [owner], and select non-[owner], actions and reusable workflows
-* In "Allow specified actions and reusable workflows" add the following string:
-  * actions/checkout@v4,
-actions/setup-python@v5,
-relekang/python-semantic-release@master,
-MishaKav/pytest-coverage-comment@main,
-actions-js/push@master,
-softprops/action-gh-release@v2,
+## Step 1: Create the Release Token (PAT)
 
-## Create a semantic release PAT and Secrets for the workflow actions
-For the semantic release to be able to push new version to the protected branch you need to
-create a PAT with the proper permissions and save the pat as a secret in the repo.
+The workflow needs a Personal Access Token to push to the protected `main` branch.
 
-### Create PAT
-* Click Top right image -> settings
-* Developer settings
-* Personal access tokens -> Tokens (classic)
-* Generate new token -> generate new token (classic)
+### Create a Fine-Grained PAT (Recommended - More Secure)
 
-Settings:
-* Note: Semantic release
-* Enable:
-  * Repo (and all the repo options)
-  * workflow
-  * admin:repo_hook
-* Generate token
+1. Go to [GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta)
+2. Click **"Generate new token"**
+3. Configure the token:
+   - **Token name:** `RELEASE_TOKEN_{{cookiecutter.project_name}}` (or similar descriptive name)
+   - **Expiration:** Choose an appropriate duration (recommend 90 days, set a reminder to rotate)
+   - **Repository access:** Select "Only select repositories" → choose this repository
+   - **Permissions:**
+     - **Contents:** Read and write (for pushing commits and tags)
+     - **Metadata:** Read-only (automatically selected)
+4. Click **"Generate token"**
+5. **Copy the token immediately** - you won't see it again!
 
-Now copy the token (you need this in the next step)
+### Alternative: Classic PAT (Simpler but Broader Access)
 
-### Create secret
-Go to your repo, then:
-* Settings -> Secrets -> Actions
-* New repository secret
-  * Name: SEM_RELEASE
-  * Secret: [Your copied PAT token]
+If fine-grained tokens don't work for your use case:
 
-The name needs to be the same, as this is what is used in ".github\workflows\semantic-release.yml"
+1. Go to [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+2. Click **"Generate new token (classic)"**
+3. Configure:
+   - **Note:** `RELEASE_TOKEN_{{cookiecutter.project_name}}`
+   - **Expiration:** Set an appropriate duration
+   - **Scopes:** Select `repo` (full control of private repositories)
+4. Click **"Generate token"** and copy it
+
+## Step 2: Add the Token as a Repository Secret
+
+1. Go to your repository on GitHub
+2. Navigate to **Settings → Secrets and variables → Actions**
+3. Click **"New repository secret"**
+4. Configure:
+   - **Name:** `RELEASE_TOKEN`
+   - **Secret:** Paste your copied PAT
+5. Click **"Add secret"**
+
+## Step 3: Configure Branch Protection with Rulesets
+
+GitHub Rulesets provide modern, flexible branch protection. The PAT allows the workflow to bypass these rules while humans must go through PRs.
+
+1. Go to your repository → **Settings → Rules → Rulesets**
+2. Click **"New ruleset"** → **"New branch ruleset"**
+3. Configure the ruleset:
+   - **Ruleset name:** `Protect main`
+   - **Enforcement status:** Active
+   - **Target branches:** Click "Add target" → "Include by pattern" → enter `main`
+
+4. Enable these rules:
+   - ✅ **Restrict deletions** - Prevent branch deletion
+   - ✅ **Require a pull request before merging**
+     - Required approvals: `1` (or more)
+     - ✅ Dismiss stale pull request approvals when new commits are pushed
+     - ✅ Require conversation resolution before merging
+   - ✅ **Require status checks to pass**
+     - ✅ Require branches to be up to date before merging
+     - Add status checks: `test` (from python-app.yml), `lint` (from python-app.yml)
+   - ✅ **Block force pushes**
+
+5. Click **"Create"**
+
+## Step 4: Restrict Allowed Actions (Optional but Recommended)
+
+Limit which GitHub Actions can run to reduce supply chain attack risk:
+
+1. Go to **Settings → Actions → General**
+2. Under "Actions permissions", select **"Allow [owner], and select non-[owner], actions and reusable workflows"**
+3. In "Allow specified actions and reusable workflows", add:
+   ```
+   actions/checkout@*,
+   actions/setup-python@*,
+   MishaKav/pytest-coverage-comment@*,
+   softprops/action-gh-release@*,
+   ```
+4. Click **"Save"**
+
+## Security Model
+
+This setup provides security through multiple layers:
+
+| Protection | What it prevents |
+|------------|------------------|
+| **CODEOWNERS** | Requires your approval for any workflow changes |
+| **Required PRs** | No direct pushes to main (humans must use PRs) |
+| **Required reviews** | At least one approval needed for every change |
+| **Status checks** | Tests must pass before merge |
+| **PAT as secret** | Token only accessible to workflows, not forks |
+| **Action allowlist** | Only trusted actions can run |
+
+**Why is the PAT safe?**
+- The PAT is stored as a secret, never exposed in logs (GitHub auto-masks it)
+- Forks cannot access repository secrets
+- Any attempt to modify workflows to steal the PAT requires your explicit approval via CODEOWNERS
+- The PAT can only push; it cannot change branch protection rules
 
 
-# Semantic release
+# Semantic Release
+
 https://python-semantic-release.readthedocs.io/en/latest/
 
-The workflows are triggered when you merge into main!!
+The workflows are triggered when you merge into main!
 
-When committing use the following format for your commit message:
-* patch:
-  `fix: commit message`
-* minor:
-  `feat: commit message`
-* major/breaking (add the breaking change on the third line of the message):
-    ```
-    feat: commit message
+When committing, use the following format for your commit message:
 
-    BREAKING CHANGE: commit message
-    ```
+**Patch release** (1.0.0 → 1.0.1):
+```
+fix: your commit message
+```
 
-# Coverage report
+**Minor release** (1.0.0 → 1.1.0):
+```
+feat: your commit message
+```
+
+**Major/breaking release** (1.0.0 → 2.0.0):
+```
+feat: your commit message
+
+BREAKING CHANGE: description of breaking change
+```
+
+
+# Coverage Report
 <!-- Pytest Coverage Comment:Begin -->
 <!-- Pytest Coverage Comment:End -->
