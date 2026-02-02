@@ -12,11 +12,8 @@ A cookiecutter template for Python libraries with modern CI/CD setup.
 *Notes*
 Workflows trigger when a branch is merged into main!
 To install, please follow all the instructions in this readme.
-
-**Security:** This template uses `GITHUB_TOKEN` with branch protection bypass instead of Personal Access Tokens (PATs). This is more secure because:
-- PATs can bypass ALL protections and be abused if workflow files are modified
-- `GITHUB_TOKEN` with proper branch protection only allows Actions to push, while humans must follow PR rules
-- Environment protection gates add an extra approval layer before critical operations
+The workflows require a PAT set as secret (see GitHub Repository Setup section for instructions).
+See the notes on how to create semantic releases at the bottom of the README.
 
 If you followed all the steps, whenever a PR is merged into `main`, the workflows are triggered and should:
 * Run pre-commit checks (fail fast on code quality issues)
@@ -81,124 +78,90 @@ git push -u origin main
 
 # 🔒 GitHub Repository Setup
 
-This section covers how to configure your GitHub repository for CI/CD operations. **Follow these steps in order.**
+Complete these steps in order to enable the CI/CD pipeline.
 
-> ⚠️ **Important:** Status checks only appear after workflows have run at least once. This guide includes a step to trigger workflows first.
+## Step 1: Create the Release Token (PAT)
 
-## Step 1: Configure Actions Permissions
+The workflow needs a Personal Access Token to push to the protected `main` branch.
 
-1. Go to **Settings** → **Actions** → **General**
+### Create a Fine-Grained PAT (Recommended - More Secure)
 
-2. Under **Actions permissions**:
-   - Select: ✅ **Allow all actions and reusable workflows**
+1. Go to [GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta)
+2. Click **"Generate new token"**
+3. Configure the token:
+   - **Token name:** `RELEASE_TOKEN` (or similar descriptive name)
+   - **Expiration:** Choose an appropriate duration (recommend 90 days, set a reminder to rotate)
+   - **Repository access:** Select "Only select repositories" → choose your repository
+   - **Permissions:**
+     - **Contents:** Read and write (for pushing commits and tags)
+     - **Metadata:** Read-only (automatically selected)
+4. Click **"Generate token"**
+5. **Copy the token immediately** - you won't see it again!
 
-3. Under **Workflow permissions**:
-   - Select: ✅ **Read and write permissions**
-   - Enable: ✅ **Allow GitHub Actions to create and approve pull requests**
+### Alternative: Classic PAT (Simpler but Broader Access)
 
-4. Under **Fork pull request workflows from outside collaborators** (for public repos):
-   - Select: ✅ **Require approval for first-time contributors**
+If fine-grained tokens don't work for your use case:
 
-5. Click **Save**
+1. Go to [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+2. Click **"Generate new token (classic)"**
+3. Configure:
+   - **Note:** `RELEASE_TOKEN`
+   - **Expiration:** Set an appropriate duration
+   - **Scopes:** Select `repo` (full control of private repositories)
+4. Click **"Generate token"** and copy it
 
----
+## Step 2: Add the Token as a Repository Secret
 
-## Step 2: Create Branch Protection Rule
+1. Go to your repository on GitHub
+2. Navigate to **Settings → Secrets and variables → Actions**
+3. Click **"New repository secret"**
+4. Configure:
+   - **Name:** `RELEASE_TOKEN`
+   - **Secret:** Paste your copied PAT
 
-1. Go to **Settings** → **Branches**
-2. Click **Add branch protection rule** (or **Add classic branch protection rule**)
-3. Set **Branch name pattern**: `main`
+5. Click **"Add secret"**
 
-### Configure these settings:
+## Step 3: Configure Branch Protection with Rulesets
 
-| Setting | Value |
-|---------|-------|
-| ✅ **Require a pull request before merging** | |
-|     | → Required approvals: `1` (or more) |
-|     | → ✅ Dismiss stale pull request approvals when new commits are pushed |
-|     | → ✅ Require review from Code Owners |
-| ✅ **Require conversation resolution before merging** | |
-| ❌ **Do not allow bypassing the above settings** | **UNCHECKED** (allows admin bypass) |
+GitHub Rulesets provide modern, flexible branch protection. The PAT allows the workflow to bypass these rules while humans must go through PRs.
 
-> **Note:** Leave "Do not allow bypassing the above settings" **UNCHECKED** so you (as admin) can bypass if needed, and so GitHub Actions can push commits.
+1. Go to your repository → **Settings → Rules → Rulesets**
+2. Click **"New ruleset"** → **"New branch ruleset"**
+3. Configure the ruleset:
+   - **Ruleset name:** `Protect main`
+   - **Enforcement status:** Active
+   - **Target branches:** Click "Add target" → "Include by pattern" → enter `main`
 
-4. Click **Create**
+4. Enable these rules:
+   - ✅ **Restrict deletions** - Prevent branch deletion
+   - ✅ **Require a pull request before merging**
+     - Required approvals: `1` (or more)
+     - ✅ Dismiss stale pull request approvals when new commits are pushed
+     - ✅ Require conversation resolution before merging
+   - ✅ **Require status checks to pass**
+     - ✅ Require branches to be up to date before merging
+     - Add status checks: `Run Pre-commit Checks`  & `Run Pre-commit Checks`
+   - ✅ **Block force pushes**
 
-> **Note:** We're NOT enabling "Require status checks to pass" yet — we'll add that after triggering the workflows in Step 3.
+5. Click **"Create"**
 
----
+## Security Model
 
-## Step 3: Trigger Workflows to Register Status Checks
+This setup provides security through multiple layers:
 
-Status checks only appear in GitHub's dropdown **after the workflows have run at least once**.
+| Protection | What it prevents |
+|------------|------------------|
+| **CODEOWNERS** | Requires your approval for any workflow changes |
+| **Required PRs** | No direct pushes to main (humans must use PRs) |
+| **Required reviews** | At least one approval needed for every change |
+| **Status checks** | Tests must pass before merge |
+| **PAT as secret** | Token only accessible to workflows, not forks |
 
-1. Create a new branch locally:
-   ```bash
-   git checkout -b test/trigger-workflows
-   ```
-
-2. Make a small change (e.g., add a comment to any file)
-
-3. Commit and push:
-   ```bash
-   git add .
-   git commit -m "fix: trigger initial workflow run"
-   git push -u origin test/trigger-workflows
-   ```
-
-4. Go to GitHub and **create a Pull Request** from `test/trigger-workflows` → `main`
-
-5. Wait for the workflows to run (you'll see them in the PR's "Checks" section):
-   - `Run Pre-commit Checks`
-   - `Run Tests and Lint`
-
-6. Once checks pass, **merge the PR** (approve it since you're the code owner)
-
-7. After merging, the release pipeline runs automatically. Check the **Actions** tab to verify it completes successfully.
-
----
-
-## Step 4: Add Status Checks to Branch Protection
-
-Now that the workflows have run, add the status checks:
-
-1. Go to **Settings** → **Branches**
-2. Click **Edit** on your `main` branch protection rule
-
-3. Enable: ✅ **Require status checks to pass before merging**
-4. Enable: ✅ **Require branches to be up to date before merging**
-5. In the search box, search for and add:
-   - `Run Tests and Lint`
-   - `Run Pre-commit Checks`
-
-6. Click **Save changes**
-
----
-
-## 🔐 Security Summary
-
-| Actor | Can push to main | Can approve PRs | Notes |
-|-------|------------------|-----------------|-------|
-| **You (admin)** | ✅ can bypass | ✅ | Admin bypass enabled |
-| **GitHub Actions** | ✅ directly | N/A | Pushes coverage, versions, wheels |
-| **Collaborators** | ❌ PR required | ✅ if reviewer | Standard PR workflow |
-| **Fork / Public** | ❌ | ❌ | Cannot push |
-
-### How the Protection Works:
-
-1. **PRs required for humans** - All collaborators must go through PRs
-2. **Admin bypass available** - You can push directly if needed (emergency fixes)
-3. **GitHub Actions can push** - Workflows push coverage reports, version bumps, and wheels automatically
-4. **CODEOWNERS protection** - Changes to `.github/workflows/` require your approval
-5. **Status checks** - Tests and linting must pass before merging
-
-### What Changed from PAT-based Setup:
-
-| Before (PAT) | After (GITHUB_TOKEN) |
-|--------------|---------------------|
-| ❌ PAT could bypass ALL protections | ✅ Only Actions can push automatically |
-| ❌ PAT in secrets = security risk | ✅ GITHUB_TOKEN is built-in and scoped |
-| ❌ PAT never expires (unless set) | ✅ GITHUB_TOKEN expires per-job |
+**Why is the PAT safe?**
+- The PAT is stored as a secret, never exposed in logs (GitHub auto-masks it)
+- Forks cannot access repository secrets
+- Any attempt to modify workflows to steal the PAT requires your explicit approval via CODEOWNERS
+- The PAT can only push; it cannot change branch protection rules
 
 ---
 
