@@ -133,7 +133,11 @@ python -m build --wheel
    pip install pre-commit
    pre-commit install
    ```
-4. Check proper install by running tests
+4. **Run pre-commit on all files** (important!)
+   ```bash
+   pre-commit run --all-files
+   ```
+5. Check proper install by running tests
    ```bash
    pytest
    ```
@@ -144,54 +148,63 @@ python -m build --wheel
 
 Follow these steps **in order** to configure your GitHub repository for secure CI/CD operations.
 
+> ⚠️ **Important:** Status checks only appear after workflows have run once. See Step 4.
+
 ## Step 1: Create the Release Environment
 
-1. Go to your repository on GitHub
-2. Navigate to **Settings** → **Environments**
-3. Click **New environment**
-4. Name it exactly: `release`
-5. Click **Configure environment**
-6. Under **Environment protection rules**, enable:
-   - ✅ **Required reviewers** → Add yourself
-7. Click **Save protection rules**
+1. Go to **Settings** → **Environments** → **New environment**
+2. Name: `release` → Click **Configure environment**
+3. Enable: ✅ **Required reviewers** → Add yourself (and trusted collaborators)
+4. Click **Save protection rules**
 
-## Step 2: Configure Branch Protection for `main`
-
-1. Go to **Settings** → **Branches**
-2. Click **Add branch ruleset** (or **Add rule**)
-3. Set **Branch name pattern**: `main`
-4. Enable these protections:
-
-| Setting | Value |
-|---------|-------|
-| **Require a pull request before merging** | ✅ Enabled |
-| → Require approvals | 1+ |
-| → Dismiss stale PR approvals when new commits are pushed | ✅ |
-| **Require status checks to pass before merging** | ✅ Enabled |
-| → Require branches to be up to date | ✅ |
-| → Add: `Run Tests and Lint`, `Run Pre-commit Checks` | ✅ |
-| **Require conversation resolution before merging** | ✅ |
-| **Do not allow bypassing the above settings** | ✅ |
-| **Allow specified actors to bypass required pull requests** | ✅ |
-| → Add: `github-actions[bot]` | ✅ |
-
-5. Enable: ✅ **Require review from Code Owners**
-6. Click **Create** / **Save changes**
-
-## Step 3: Configure Repository Actions Permissions
+## Step 2: Configure Actions Permissions
 
 1. Go to **Settings** → **Actions** → **General**
-2. Under **Actions permissions**: ✅ **Allow all actions and reusable workflows**
-3. Under **Workflow permissions**:
+2. **Actions permissions**: ✅ **Allow all actions and reusable workflows**
+3. **Workflow permissions**:
    - ✅ **Read and write permissions**
    - ✅ **Allow GitHub Actions to create and approve pull requests**
-4. Click **Save**
+4. **Fork pull request workflows**: ✅ **Require approval for first-time contributors**
+5. Click **Save**
 
-## Step 4: Restrict Fork Workflows (Public Repos Only)
+## Step 3: Create Branch Ruleset (without status checks)
 
-1. Go to **Settings** → **Actions** → **General**
-2. Under **Fork pull request workflows**:
-   - ✅ **Require approval for first-time contributors**
+1. Go to **Settings** → **Rules** → **Rulesets**
+2. Click **New ruleset** → **New branch ruleset**
+
+| Field | Value |
+|-------|-------|
+| **Ruleset name** | `main-protection` |
+| **Enforcement status** | ✅ **Active** |
+
+3. **Target branches**: Add target → Include by pattern → `main`
+
+4. **Bypass list**: Add bypass → search `github-actions` → select **github-actions[bot]** → **Always**
+
+5. Enable these rules:
+
+| Rule | Sub-settings |
+|------|--------------|
+| ✅ **Restrict deletions** | |
+| ✅ **Require a pull request before merging** | |
+|     | → **Required approvals**: `1` |
+|     | → ✅ **Dismiss stale pull request approvals** |
+|     | → ✅ **Require review from Code Owners** |
+|     | → ✅ **Require conversation resolution** |
+| ✅ **Block force pushes** | |
+
+6. Click **Create** (we'll add status checks after Step 4)
+
+## Step 4: Trigger Workflows & Add Status Checks
+
+1. Create a branch, make a small change, push, and open a PR
+2. Wait for workflows to run (`Run Tests and Lint`, `Run Pre-commit Checks`)
+3. Merge the PR → Approve the release environment deployment
+4. Go back to **Settings** → **Rules** → **Rulesets** → Edit `main-protection`
+5. Enable: ✅ **Require status checks to pass**
+   - ✅ **Require branches to be up to date**
+   - Add checks: `Run Tests and Lint`, `Run Pre-commit Checks`
+6. Click **Save changes**
 
 ---
 

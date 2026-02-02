@@ -1,4 +1,4 @@
-{% raw %}name: Release Pipeline - Coverage, Versioning, and Package Distribution
+name: Release Pipeline - Coverage, Versioning, and Package Distribution
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ permissions:
 jobs:
   coverage-report:
     name: Generate and Update Coverage Report
-    if: ${{ github.event.pull_request.merged }}
+    if: {% raw %}${{ github.event.pull_request.merged }}{% endraw %}
     runs-on: ubuntu-latest
     environment: release  # Requires environment approval for extra security
     steps:
@@ -38,7 +38,7 @@ jobs:
 
       - name: Run tests and generate coverage report (all files)
         run: |
-          pytest --junitxml=pytest.xml --cov=src/{{cookiecutter.project_name}} --cov-report=term-missing --cov-report=xml:coverage.xml tests/ | tee pytest-coverage.txt
+          pytest --junitxml=pytest.xml --cov=src/{{ cookiecutter.project_name }} --cov-report=term-missing --cov-report=xml:coverage.xml tests/ | tee pytest-coverage.txt
 
       - name: Extract coverage data for README badge
         id: coverageComment
@@ -50,7 +50,7 @@ jobs:
 
       - name: Update README with coverage badge HTML
         run: |
-          sed -i '/<!-- Pytest Coverage Comment:Begin -->/,/<!-- Pytest Coverage Comment:End -->/c\<!-- Pytest Coverage Comment:Begin -->\n\${{ steps.coverageComment.outputs.coverageHtml }}\n<!-- Pytest Coverage Comment:End -->' ./README.md
+          sed -i '/<!-- Pytest Coverage Comment:Begin -->/,/<!-- Pytest Coverage Comment:End -->/c\<!-- Pytest Coverage Comment:Begin -->\n{% raw %}${{ steps.coverageComment.outputs.coverageHtml }}{% endraw %}\n<!-- Pytest Coverage Comment:End -->' ./README.md
 
       - name: Clean up temporary coverage files
         run: rm ./pytest-coverage.txt ./pytest.xml ./coverage.xml
@@ -66,7 +66,7 @@ jobs:
   semantic-release:
     name: Create New Version Tag via Semantic Release
     needs: coverage-report
-    if: ${{ github.event.pull_request.merged }}
+    if: {% raw %}${{ github.event.pull_request.merged }}{% endraw %}
     runs-on: ubuntu-latest
     environment: release
     concurrency: release
@@ -98,12 +98,12 @@ jobs:
           git config --local user.name "github-actions[bot]"
           semantic-release version
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
 
   build-and-publish:
     name: Build Wheel and Publish to GitHub Release
     needs: semantic-release
-    if: ${{ github.event.pull_request.merged }}
+    if: {% raw %}${{ github.event.pull_request.merged }}{% endraw %}
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -153,10 +153,8 @@ jobs:
       - name: Upload wheel as GitHub Release asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.get_version.outputs.version }}
-          files: dist/{{cookiecutter.project_name}}-${{ steps.get_version.outputs.version_num }}-py3-none-any.whl
+          tag_name: {% raw %}${{ steps.get_version.outputs.version }}{% endraw %}
+          files: dist/{{ cookiecutter.project_name }}-{% raw %}${{ steps.get_version.outputs.version_num }}{% endraw %}-py3-none-any.whl
           fail_on_unmatched_files: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-{%- endraw %}
+          GITHUB_TOKEN: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}

@@ -42,6 +42,8 @@ Cookiecutter template:
 * Install pre-commit hooks
   * `pip install pre-commit`
   * `pre-commit install`
+* **Run pre-commit on all files** (important for initial commit!)
+  * `pre-commit run --all-files`
 * Check proper install by running tests
   * `pytest`
 
@@ -81,6 +83,8 @@ git push -u origin main
 
 This section covers how to configure your GitHub repository for secure CI/CD operations. **Follow these steps in order.**
 
+> ⚠️ **Important:** Some settings (like status checks) require the workflows to have run at least once before they appear as options. This guide includes a step to trigger the workflows first.
+
 ## Step 1: Create the Release Environment
 
 The workflows use a `release` environment that requires approval before running critical operations (pushing to main, creating releases).
@@ -90,89 +94,131 @@ The workflows use a `release` environment that requires approval before running 
 3. Click **New environment**
 4. Name it exactly: `release`
 5. Click **Configure environment**
-6. Under **Environment protection rules**, enable:
-   - ✅ **Required reviewers** → Add yourself (or trusted collaborators)
+6. Under **Environment protection rules**:
+   - ✅ **Required reviewers** → Add yourself (and any trusted collaborators who should be able to approve)
+
+> **Note:** If you add collaborators as reviewers, they can approve deployments without needing YOUR explicit approval each time. This is useful for teams where multiple people should be able to release.
+
 7. Click **Save protection rules**
 
-> **Why?** Even if someone modifies a workflow to abuse bypass rights, the job won't run without your approval.
-
 ---
 
-## Step 2: Configure Branch Protection for `main`
-
-1. Go to **Settings** → **Branches**
-2. Click **Add branch ruleset** (or **Add rule** for classic protection)
-3. Set **Branch name pattern**: `main`
-4. Enable the following protections:
-
-### Required Settings:
-| Setting | Value |
-|---------|-------|
-| **Require a pull request before merging** | ✅ Enabled |
-| → Require approvals | Set to 1 (or more) |
-| → Dismiss stale PR approvals when new commits are pushed | ✅ Enabled |
-| **Require status checks to pass before merging** | ✅ Enabled |
-| → Require branches to be up to date before merging | ✅ Enabled |
-| → Add status checks: `Run Tests and Lint`, `Run Pre-commit Checks` | ✅ Add these |
-| **Require conversation resolution before merging** | ✅ Enabled |
-| **Do not allow bypassing the above settings** | ✅ Enabled |
-
-### Critical Security Setting:
-| Setting | Value |
-|---------|-------|
-| **Allow specified actors to bypass required pull requests** | ✅ Enabled |
-| → Add: `github-actions[bot]` | ✅ Add this actor |
-
-> **Why?** This allows your GitHub Actions workflows to push directly to `main` (for coverage updates, version bumps, wheel commits), while **humans must always go through PRs**.
-
-5. Click **Create** or **Save changes**
-
----
-
-## Step 3: Configure Repository Actions Permissions
+## Step 2: Configure Actions Permissions
 
 1. Go to **Settings** → **Actions** → **General**
-2. Under **Actions permissions**, select:
-   - ✅ **Allow all actions and reusable workflows**
-   - (Or for extra security: **Allow select actions** and add the specific actions used)
+
+2. Under **Actions permissions**:
+   - Select: ✅ **Allow all actions and reusable workflows**
 
 3. Under **Workflow permissions**:
    - Select: ✅ **Read and write permissions**
    - Enable: ✅ **Allow GitHub Actions to create and approve pull requests**
 
-4. Click **Save**
-
-> **Why?** The workflows need write access to push commits (coverage, wheel, version bumps). The "create and approve PRs" option is needed for some automation scenarios.
-
----
-
-## Step 4: Enable CODEOWNERS Protection
-
-The template includes a `.github/CODEOWNERS` file that requires your approval for changes to:
-- `.github/workflows/**` (workflow files)
-- `.github/CODEOWNERS` (the CODEOWNERS file itself)
-- `pyproject.toml` (package configuration)
-
-**To make CODEOWNERS work:**
-
-1. Go to **Settings** → **Branches** → Edit your `main` branch rule
-2. Enable: ✅ **Require review from Code Owners**
-3. Save changes
-
-> **Why?** This prevents attackers from modifying workflow files to abuse the GITHUB_TOKEN bypass rights. They'd need YOUR approval to change any workflow.
-
----
-
-## Step 5: Restrict Fork Pull Request Workflows (Public Repos)
-
-If your repository is **public**, add extra protection:
-
-1. Go to **Settings** → **Actions** → **General**
-2. Under **Fork pull request workflows from outside collaborators**:
+4. Under **Fork pull request workflows from outside collaborators** (for public repos):
    - Select: ✅ **Require approval for first-time contributors**
-   - Or more strict: **Require approval for all outside collaborators**
 
-> **Why?** Prevents malicious forks from running workflows that could abuse repository access.
+5. Click **Save**
+
+---
+
+## Step 3: Create Initial Branch Ruleset (Partial)
+
+We'll create the ruleset now, but **leave out status checks** since they don't exist yet.
+
+1. Go to **Settings** → **Rules** → **Rulesets**
+2. Click **New ruleset** → **New branch ruleset**
+
+### Basic Configuration:
+
+| Field | Value |
+|-------|-------|
+| **Ruleset name** | `main-protection` |
+| **Enforcement status** | ✅ **Active** |
+
+### Target Branches:
+
+3. Under **Target branches**, click **Add target** → **Include by pattern**
+4. Enter: `main`
+5. Click **Add**
+
+### Bypass List (Critical for CI/CD):
+
+6. Under **Bypass list**, click **Add bypass**
+7. In the search box, type: `github-actions`
+8. Select: ✅ **github-actions[bot]**
+9. Set bypass mode to: **Always**
+
+> **Troubleshooting:** If `github-actions[bot]` doesn't appear:
+> - Try typing the full name: `github-actions[bot]`
+> - Or select **GitHub App** from the dropdown, then search for `github-actions`
+> - The bot MUST be in the bypass list for CI/CD to work!
+
+### Branch Rules (enable these checkboxes):
+
+| Rule | Sub-settings |
+|------|--------------|
+| ✅ **Restrict deletions** | |
+| ✅ **Require linear history** | (optional) |
+| ✅ **Require a pull request before merging** | |
+|     | → **Required approvals**: `1` |
+|     | → ✅ **Dismiss stale pull request approvals when new commits are pushed** |
+|     | → ✅ **Require review from Code Owners** |
+|     | → ✅ **Require conversation resolution before merging** |
+| ✅ **Block force pushes** | |
+
+> **Note:** We're NOT enabling "Require status checks to pass" yet — we'll add that after triggering the workflows.
+
+10. Click **Create**
+
+---
+
+## Step 4: Trigger Workflows to Register Status Checks
+
+Status checks only appear in GitHub's dropdown **after the workflows have run at least once**. Let's trigger them:
+
+1. Create a new branch locally:
+   ```bash
+   git checkout -b test/trigger-workflows
+   ```
+
+2. Make a small change (e.g., add a comment to any file)
+
+3. Commit and push:
+   ```bash
+   git add .
+   git commit -m "fix: trigger initial workflow run"
+   git push -u origin test/trigger-workflows
+   ```
+
+4. Go to GitHub and **create a Pull Request** from `test/trigger-workflows` → `main`
+
+5. Wait for the workflows to run (you'll see them in the PR's "Checks" section)
+   - `Run Pre-commit Checks` should appear
+   - `Run Tests and Lint` should appear
+
+6. Once checks pass, **merge the PR** (you may need to approve it first since you're the code owner)
+
+7. After merging, the release pipeline will trigger. Go to **Actions** tab and **approve the deployment** to the `release` environment when prompted.
+
+---
+
+## Step 5: Add Status Checks to Branch Ruleset
+
+Now that the workflows have run, we can add the status checks:
+
+1. Go to **Settings** → **Rules** → **Rulesets**
+2. Click on your `main-protection` ruleset to edit it
+
+3. Enable: ✅ **Require status checks to pass**
+4. Under the status checks section:
+   - ✅ **Require branches to be up to date before merging**
+   - Click **Add checks**
+   - Search for and add: `Run Tests and Lint`
+   - Search for and add: `Run Pre-commit Checks`
+
+> **Note:** When you search, GitHub may show "(from any source)" next to the check name. This is normal — it means GitHub will accept this status whether it comes from GitHub Actions or any other CI system.
+
+5. Click **Save changes**
 
 ---
 
@@ -180,10 +226,24 @@ If your repository is **public**, add extra protection:
 
 | Actor | Can push to main | Can change workflows | Can trigger release |
 |-------|------------------|---------------------|---------------------|
-| **You (owner)** | ✅ via PR only | ✅ via PR only | ✅ after approval |
-| **GitHub Actions** | ✅ directly | ❌ | ✅ after environment approval |
-| **Collaborators** | ❌ (unless PR approved) | ❌ (unless you approve) | ❌ |
+| **You (owner)** | ✅ via PR only | ✅ via PR only | ✅ (can approve) |
+| **GitHub Actions** | ✅ directly (bypass) | ❌ (CODEOWNERS blocks) | ✅ (after environment approval) |
+| **Collaborators** | ❌ (unless PR approved) | ❌ (unless you approve) | ✅ if added as environment reviewer |
 | **Fork / Public** | ❌ | ❌ | ❌ |
+
+### About Environment Approval:
+
+- **You** can add collaborators as "Required reviewers" in the `release` environment
+- Any reviewer can approve the deployment — it doesn't require ALL reviewers
+- This means trusted collaborators can approve releases without waiting for you
+- To add collaborators: **Settings** → **Environments** → `release` → **Required reviewers**
+
+### How It Works:
+
+1. **CODEOWNERS file** (included in template) requires YOUR approval for any changes to `.github/workflows/`
+2. **Branch ruleset** allows `github-actions[bot]` to bypass PR requirements
+3. **Environment protection** requires approval before release jobs run
+4. **Result:** Workflows can push (coverage, versions, wheels), but no one can modify the workflows without your review
 
 ### What We Removed (Insecure):
 - ❌ Personal Access Tokens (PATs) - can bypass ALL protections
@@ -195,7 +255,7 @@ If your repository is **public**, add extra protection:
 - ✅ Environment protection with required reviewers
 - ✅ CODEOWNERS file protecting workflow files
 - ✅ Explicit `permissions:` blocks in workflows
-- ✅ Branch protection allowing only Actions to bypass
+- ✅ Branch ruleset allowing only Actions to bypass
 
 ---
 
