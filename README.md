@@ -140,7 +140,7 @@ GitHub Rulesets provide modern, flexible branch protection. The PAT allows the w
      - ✅ Require conversation resolution before merging
    - ✅ **Require status checks to pass**
      - ✅ Require branches to be up to date before merging
-     - Add status checks: `Run Pre-commit Checks`  & `Run Pre-commit Checks`
+     - Add status checks: `Run Pre-commit Checks`  & `Run Tests and Lint`
    - ✅ **Block force pushes**
 
 5. Click **"Create"**
