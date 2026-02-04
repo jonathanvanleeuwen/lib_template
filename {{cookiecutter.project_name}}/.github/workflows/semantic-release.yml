@@ -24,7 +24,7 @@ jobs:
           token: {% raw %}${{ secrets.RELEASE_TOKEN }}{% endraw %}  # PAT for pushing to protected branch
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -79,7 +79,7 @@ jobs:
         run: git pull
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -111,7 +111,7 @@ jobs:
         run: git pull origin main
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
