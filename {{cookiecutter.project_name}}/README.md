@@ -185,6 +185,18 @@ python -m build --wheel
 
 Complete these steps in order to enable the CI/CD pipeline.
 
+> **⚠️ Important: Run Pre-commit Locally First!**
+>
+> Before creating your first PR, install and run pre-commit locally to avoid CI failures:
+> ```bash
+> uv pip install --system pre-commit
+> pre-commit install
+> pre-commit run --all-files  # This will auto-fix formatting issues
+> git add -u && git commit -m "chore: apply pre-commit fixes"
+> ```
+>
+> **Why:** Cookiecutter templates may have trailing whitespace or missing EOF newlines. Pre-commit auto-fixes these, but if not run locally first, your initial CI run will fail.
+
 ## Step 1: Create the Release Token (PAT)
 
 The workflow needs a Personal Access Token (PAT) to push commits, tags, and releases to your protected `main` branch.
@@ -251,9 +263,9 @@ GitHub Rulesets provide modern, flexible branch protection. The PAT allows the w
    - ✅ **Require status checks to pass**
      - ✅ Require branches to be up to date before merging
      - Add status checks (these come from the reusable CI workflow):
-       - `ci / pre-commit` - Pre-commit hooks (ruff format, trailing whitespace, etc.)
-       - `ci / lint` - Ruff linting
-       - `ci / test` - Pytest test suite
+       - `ci / Run Pre-commit Checks` - Pre-commit hooks (ruff format, trailing whitespace, etc.)
+       - `ci / Lint with Ruff` - Ruff linting
+       - `ci / Run Tests with Pytest` - Pytest test suite
    - ✅ **Block force pushes**
 
 5. Click **"Create"**
