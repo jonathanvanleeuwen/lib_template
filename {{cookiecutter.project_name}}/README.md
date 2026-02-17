@@ -1,26 +1,34 @@
 # {{cookiecutter.project_name}}
-A Python library with modern CI/CD setup.
+A Python library with modern CI/CD setup using centralized reusable workflows.
 
 ## Features
-* Automated testing on PR using GitHub Actions
-* Pre-commit hooks for code quality (ruff, isort, trailing whitespace, etc.)
-* Semantic release using GitHub Actions
-* Automatic code coverage report in README
-* Automatic wheel build and GitHub Release publishing
-* Modern Python packaging with pyproject.toml
+* **Centralized CI/CD**: Uses reusable workflows from `jonathanvanleeuwen/cicd_github` repository
+* **Automated testing**: Pre-commit hooks, linting (ruff), and pytest on every PR
+* **Semantic release**: Automated versioning based on commit messages (feat/fix/BREAKING CHANGE)
+* **Coverage reporting**: Automatic code coverage report committed to README
+* **Automated publishing**: Wheel builds and GitHub Release publishing on merge to main
+* **Modern tooling**: UV for fast installations, ruff for linting/formatting, pytest for testing
 
-*Notes*
-Workflows trigger when a branch is merged into main!
-To install, please follow all the instructions in this readme.
-The workflows require a PAT set as secret (see further down for instructions)
-See the notes on how to create semantic releases at the bottom of the README.
+## CI/CD Architecture
 
-If you followed all the steps, whenever a PR is merged into `main`, the workflows are triggered and should:
-* Run pre-commit checks (fail fast on code quality issues)
-* Ensure that tests pass (before merge)
-* Create a code coverage report and commit that to the bottom of the README
-* Create a semantic release (if you follow the semantic release pattern) and automatically update the version number of your code
-* Build a wheel and publish it as a GitHub Release asset
+This project uses **reusable GitHub Actions workflows** stored in the public `jonathanvanleeuwen/cicd_github` repository. This pattern:
+- **Eliminates duplication**: CI/CD logic defined once, used across all projects
+- **Ensures consistency**: All libraries use the same tested workflows
+- **Simplifies maintenance**: Workflow updates propagate to all projects automatically
+
+**Workflow triggers**: On PR (CI) and merge to `main` (CD)
+
+## What Happens When You Merge to Main
+
+If you followed all setup steps in this README, merging a PR into `main` triggers:
+1. **Pre-commit checks**: Ruff formatting, trailing whitespace, YAML validation
+2. **Linting**: Ruff linter with strict settings
+3. **Testing**: Full pytest suite with coverage reporting
+4. **Coverage update**: Coverage badge and report committed to this README
+5. **Semantic release**: Automatic version bump based on commit message (feat → minor, fix → patch, BREAKING CHANGE → major)
+6. **Build & publish**: Wheel file built and attached to GitHub Release
+
+> **⚠️ Important**: The workflows require a PAT (Personal Access Token) configured as a repository secret to push commits/tags to protected branches. See setup instructions below.
 
 
 # Installation
@@ -121,6 +129,8 @@ python -m build --wheel
 
 # Development Setup
 
+## Using pip (Standard Method)
+
 1. Create new virtual environment
    ```bash
    python -m venv .venv
@@ -143,6 +153,33 @@ python -m build --wheel
    pytest
    ```
 
+## Using uv (Faster Alternative)
+
+[uv](https://github.com/astral-sh/uv) is a fast Python package installer (used by CI/CD workflows):
+
+1. Install uv (if not already installed)
+   ```bash
+   pip install uv
+   ```
+2. Create virtual environment and install dependencies
+   ```bash
+   uv venv .venv
+   uv pip install -e ".[dev]"
+   ```
+3. Install pre-commit hooks
+   ```bash
+   uv pip install pre-commit
+   pre-commit install
+   ```
+4. Run pre-commit on all files
+   ```bash
+   pre-commit run --all-files
+   ```
+5. Run tests
+   ```bash
+   pytest
+   ```
+
 
 # GitHub Repository Setup
 
@@ -150,7 +187,9 @@ Complete these steps in order to enable the CI/CD pipeline.
 
 ## Step 1: Create the Release Token (PAT)
 
-The workflow needs a Personal Access Token to push to the protected `main` branch.
+The workflow needs a Personal Access Token (PAT) to push commits, tags, and releases to your protected `main` branch.
+
+> **Note**: Since the reusable workflows are hosted in a public repository (`jonathanvanleeuwen/cicd_github`), the PAT only needs access to this repository - no additional permissions required!
 
 ### Create a Fine-Grained PAT (Recommended - More Secure)
 
@@ -159,9 +198,10 @@ The workflow needs a Personal Access Token to push to the protected `main` branc
 3. Configure the token:
    - **Token name:** `RELEASE_TOKEN_{{cookiecutter.project_name}}` (or similar descriptive name)
    - **Expiration:** Choose an appropriate duration (recommend 90 days, set a reminder to rotate)
-   - **Repository access:** Select "Only select repositories" → choose this repository
+   - **Repository access:** Select "Only select repositories" → Choose:
+     - ✅ `{{cookiecutter.github_username}}/{{cookiecutter.project_name}}` (this repository)
    - **Permissions:**
-     - **Contents:** Read and write (for pushing commits and tags)
+     - **Contents:** Read and write (for pushing commits, tags, and releases)
      - **Metadata:** Read-only (automatically selected)
 4. Click **"Generate token"**
 5. **Copy the token immediately** - you won't see it again!
@@ -175,8 +215,11 @@ If fine-grained tokens don't work for your use case:
 3. Configure:
    - **Note:** `RELEASE_TOKEN_{{cookiecutter.project_name}}`
    - **Expiration:** Set an appropriate duration
-   - **Scopes:** Select `repo` (full control of private repositories)
+   - **Scopes:** Select:
+     - ✅ `repo` (full control of private repositories)
 4. Click **"Generate token"** and copy it
+
+> **Note:** Classic PATs grant access to ALL your private repositories. Fine-grained tokens are more secure as they limit access to only this repository.
 
 ## Step 2: Add the Token as a Repository Secret
 
@@ -207,10 +250,15 @@ GitHub Rulesets provide modern, flexible branch protection. The PAT allows the w
      - ✅ Require conversation resolution before merging
    - ✅ **Require status checks to pass**
      - ✅ Require branches to be up to date before merging
-     - Add status checks: `test` (from python-app.yml), `lint` (from python-app.yml)
+     - Add status checks (these come from the reusable CI workflow):
+       - `ci / pre-commit` - Pre-commit hooks (ruff format, trailing whitespace, etc.)
+       - `ci / lint` - Ruff linting
+       - `ci / test` - Pytest test suite
    - ✅ **Block force pushes**
 
 5. Click **"Create"**
+
+> **Note on status check names**: The checks appear as `ci / <job-name>` because they run inside the reusable workflow called by the `ci` job in `python-app.yml`. You may need to run the workflow once before these checks appear in the dropdown.
 
 ## Step 4: Restrict Allowed Actions (Optional but Recommended)
 
